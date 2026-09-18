@@ -1,4 +1,4 @@
-package songoycollection.depense.dtos;
+package songoycollection.achat.dtos;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;

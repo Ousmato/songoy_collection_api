@@ -17,6 +17,13 @@ public class Vente {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /**
+     * Numéro lisible de la facture, généré par le backend après attribution de l'identifiant.
+     * La colonne reste nullable pour permettre la mise à jour d'une base contenant déjà des ventes.
+     */
+    @Column(name = "numero_facture", unique = true, length = 50)
+    private String numeroFacture;
+
     private LocalDateTime date;
 
     @NotNull(message = "Personnel encaissé obligatoire")

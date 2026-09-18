@@ -1,4 +1,4 @@
-package songoycollection.depense.dtos;
+package songoycollection.achat.dtos;
 
 public record ReceptionResponse(
         Long id,

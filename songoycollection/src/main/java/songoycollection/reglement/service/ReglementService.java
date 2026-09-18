@@ -3,6 +3,7 @@ package songoycollection.reglement.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import songoycollection.config.HttpCustumMessage;
 import songoycollection.reglement.dtos.ReglementRequest;
 import songoycollection.reglement.dtos.ReglementResponse;
 import songoycollection.achat.model.Achat;
@@ -102,7 +103,15 @@ public class ReglementService {
             Personnel personnel
     ) {
         validateVente(vente);
-        BigDecimal total = money(ligneVenteRepository.sumTotalByVenteId(vente.getId()));
+        BigDecimal total = money(
+                ligneVenteRepository.sumTotalByVenteId(vente.getId())
+        );
+
+        if (total.compareTo(new BigDecimal("1000.0")) <= 0) {
+            throw new IllegalArgumentException(
+                    "Le montant payé doit être supérieur à 1000 FCFA"
+            );
+        }
         BigDecimal dejaRegle = zeroIfNull(reglementRepository.sumByVenteId(vente.getId()));
         return enregistrer(
                 montant,
@@ -124,17 +133,7 @@ public class ReglementService {
             Achat achat,
             Vente vente
     ) {
-        BigDecimal paiement = normalizeAmount(montant);
-
-        if (paiement.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Le montant du règlement doit être positif.");
-        }
-        if (reste.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Cette dette est déjà entièrement réglée.");
-        }
-        if (paiement.compareTo(reste) > 0) {
-            throw new IllegalArgumentException("Le règlement dépasse le reste à payer.");
-        }
+        BigDecimal paiement = getBigDecimal(montant, reste);
         if (modePaiement == null || modePaiement == EnumShared.ModePaiement.CREDIT) {
             throw new IllegalArgumentException("Sélectionnez un moyen de paiement effectué.");
         }
@@ -150,6 +149,21 @@ public class ReglementService {
         reglement.setDate(date);
         reglement.setPersonnel(personnel);
         return reglementRepository.save(reglement);
+    }
+
+    private BigDecimal getBigDecimal(BigDecimal montant, BigDecimal reste) {
+        BigDecimal paiement = normalizeAmount(montant);
+
+        if (paiement.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Le montant du règlement doit être positif.");
+        }
+        if (reste.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Cette dette est déjà entièrement réglée.");
+        }
+        if (paiement.compareTo(reste) > 0) {
+            throw new IllegalArgumentException("Le règlement dépasse le reste à payer.");
+        }
+        return paiement;
     }
 
     private BigDecimal normalizeAmount(BigDecimal amount) {
@@ -209,4 +223,5 @@ public class ReglementService {
             throw new IllegalArgumentException("La vente est obligatoire.");
         }
     }
+
 }

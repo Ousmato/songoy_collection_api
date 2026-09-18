@@ -16,6 +16,9 @@ import songoycollection.depense.repository.DepenseRepository;
 import songoycollection.personne.repository.PersonnelRepository;
 import songoycollection.reglement.repository.ReglementRepository;
 import songoycollection.stock.repository.StockLotRepository;
+import songoycollection.stock.repository.StockMouvementRepository;
+import songoycollection.vente.repository.LigneVenteRepository;
+import songoycollection.vente.repository.VenteRepository;
 
 @Data
 @Service
@@ -46,4 +49,10 @@ public class RepositoryService {
     private final DepenseRepository depenseRepository;
 
     private final ReglementRepository reglementRepository;
+
+    private final VenteRepository venteRepository;
+
+    private final LigneVenteRepository ligneVenteRepository;
+
+    private final StockMouvementRepository stockMouvementRepository;
 }

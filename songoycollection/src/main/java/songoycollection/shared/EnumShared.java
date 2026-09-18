@@ -6,7 +6,7 @@ public final class EnumShared {
     }
 
     public  enum UniteMesureCategory{
-        UNITE, METRE, PAGNE,CARTON
+        UNITE, METRE, PAGNE,CARTON, PAIRE
     }
 
     public enum PersonnelRole {
@@ -24,7 +24,7 @@ public final class EnumShared {
     }
 
     public enum MotifDepense {
-        SALAIRE, TRANSPORT, ACCESSOIRE, REPARATION, AUTRE, ACHAT
+        SALAIRE, TRANSPORT, ACCESSOIRE, REPARATION, AUTRE, EAUX, ELECTRICITER
     }
 
     public enum ModePaiement {
@@ -36,7 +36,10 @@ public final class EnumShared {
     }
 
     public enum TypeMouvement {
-        VENTE, ACHAT, AJUSTEMENT, INVENTAIRE, ANNULATION_VENTE,
+        VENTE, ACHAT, AJUSTEMENT,
+        /** Valeur historique conservée pour lire d'anciennes données ; aucun nouveau mouvement ne l'utilise. */
+        @Deprecated INVENTAIRE,
+        ANNULATION_VENTE,
     }
 
     public enum CategoryType {

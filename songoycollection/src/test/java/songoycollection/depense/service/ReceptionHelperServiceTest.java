@@ -2,8 +2,9 @@ package songoycollection.depense.service;
 
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
+import songoycollection.achat.service.ReceptionHelperService;
 import songoycollection.article.repository.ArticleVariantRepository;
-import songoycollection.depense.dtos.ReceptionRequest;
+import songoycollection.achat.dtos.ReceptionRequest;
 import songoycollection.depense.model.Depense;
 import songoycollection.achat.model.Achat;
 import songoycollection.personne.model.Personnel;

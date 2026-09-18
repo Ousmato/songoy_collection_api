@@ -1,10 +1,10 @@
-package songoycollection.depense.service;
+package songoycollection.achat.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import songoycollection.depense.dtos.ReceptionRequest;
-import songoycollection.depense.dtos.ReceptionResponse;
+import songoycollection.achat.dtos.ReceptionRequest;
+import songoycollection.achat.dtos.ReceptionResponse;
 import songoycollection.reglement.service.ReglementService;
 
 import java.math.BigDecimal;

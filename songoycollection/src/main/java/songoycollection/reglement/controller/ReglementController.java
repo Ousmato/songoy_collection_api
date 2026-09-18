@@ -35,4 +35,6 @@ public class ReglementController {
     ) {
         return reglementService.reglerVente(venteId, idAdmin, request);
     }
+
+
 }

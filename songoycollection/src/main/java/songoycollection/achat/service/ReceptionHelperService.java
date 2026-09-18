@@ -1,4 +1,4 @@
-package songoycollection.depense.service;
+package songoycollection.achat.service;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
@@ -10,7 +10,7 @@ import songoycollection.achat.model.Achat;
 import songoycollection.achat.model.LigneAchat;
 import songoycollection.article.model.ArticleVariant;
 import songoycollection.article.repository.ArticleVariantRepository;
-import songoycollection.depense.dtos.ReceptionRequest;
+import songoycollection.achat.dtos.ReceptionRequest;
 import songoycollection.personne.model.Fournisseur;
 import songoycollection.personne.model.Personnel;
 import songoycollection.personne.shared.PersonnelUtiliShared;

@@ -21,7 +21,7 @@ public class StockLot {
     @ManyToOne(fetch = FetchType.LAZY)
     private ArticleVariant variant;
 
-    // Absent pour un stock initial ; référence la réception pour un achat.
+    // Chaque lot provient d'une ligne de réception d'achat.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ligne_achat_id")
     private LigneAchat ligneAchat;
