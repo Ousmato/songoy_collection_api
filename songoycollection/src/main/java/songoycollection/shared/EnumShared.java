@@ -10,7 +10,7 @@ public final class EnumShared {
     }
 
     public enum PersonnelRole {
-    ADMIN, CAISSIER, APPRENANT, JUNIOR, MENTOR, CLIENT,RESPONSABLE,SUPER_ADMIN
+    ADMIN, CAISSIER, APPRENANT, JUNIOR, MENTOR, CLIENT,LIVREUR, RESPONSABLE,SUPER_ADMIN,
     }
 
     public enum Entite {

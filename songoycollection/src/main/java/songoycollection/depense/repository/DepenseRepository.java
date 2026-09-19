@@ -32,6 +32,36 @@ public interface DepenseRepository extends JpaRepository<Depense, Long> {
             @Param("finExclusive") LocalDateTime finExclusive
     );
 
+    @Query("""
+            select coalesce(sum(d.montant), 0)
+            from Depense d
+            where d.entite = :entite
+              and d.motifDepense = :motif
+              and d.date >= :debut
+              and d.date < :finExclusive
+            """)
+    BigDecimal sumAmountByEntiteAndMotifBetween(
+            @Param("entite") EnumShared.Entite entite,
+            @Param("motif") EnumShared.MotifDepense motif,
+            @Param("debut") LocalDateTime debut,
+            @Param("finExclusive") LocalDateTime finExclusive
+    );
+
+    @Query("""
+            select coalesce(sum(d.montant), 0)
+            from Depense d
+            where d.entite = :entite
+              and (d.motifDepense is null or d.motifDepense <> :motifExclu)
+              and d.date >= :debut
+              and d.date < :finExclusive
+            """)
+    BigDecimal sumAmountByEntiteAndMotifDifferentBetween(
+            @Param("entite") EnumShared.Entite entite,
+            @Param("motifExclu") EnumShared.MotifDepense motifExclu,
+            @Param("debut") LocalDateTime debut,
+            @Param("finExclusive") LocalDateTime finExclusive
+    );
+
     default BigDecimal sumBoutiqueAmountBetween(LocalDateTime debut, LocalDateTime finExclusive) {
         return sumAmountBetween(EnumShared.Entite.BOUTIQUE, debut, finExclusive);
     }

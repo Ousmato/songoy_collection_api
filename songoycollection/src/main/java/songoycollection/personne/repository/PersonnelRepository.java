@@ -6,6 +6,7 @@ import songoycollection.personne.model.Personnel;
 import songoycollection.shared.EnumShared;
 
 import java.util.Optional;
+import java.util.List;
 
 @Repository
 public interface PersonnelRepository extends JpaRepository<Personnel, Long> {
@@ -25,4 +26,30 @@ public interface PersonnelRepository extends JpaRepository<Personnel, Long> {
     boolean existsByAccessCode(String accessCode);
 
     Optional<Personnel> findByAccessCodeAndActiveTrue(String accessCode);
+
+    List<Personnel> findAllByActiveTrueAndRoleAndEntiteOrderByNomAscPrenomAsc(
+            EnumShared.PersonnelRole role,
+            EnumShared.Entite entite
+    );
+
+    List<Personnel> findAllByActiveTrueAndRoleOrderByNomAscPrenomAsc(
+            EnumShared.PersonnelRole role
+    );
+
+    List<Personnel> findAllByEntiteInAndActiveTrueAndRoleNotInOrderByNomAscPrenomAsc(
+            List<EnumShared.Entite> entites,
+            List<EnumShared.PersonnelRole> rolesExclus
+    );
+
+    long countByActiveTrueAndRole(EnumShared.PersonnelRole role);
+
+    long countByActiveTrueAndRoleAndEntite(
+            EnumShared.PersonnelRole role,
+            EnumShared.Entite entite
+    );
+
+    long countByEntiteInAndActiveTrueAndRoleNotIn(
+            List<EnumShared.Entite> entites,
+            List<EnumShared.PersonnelRole> rolesExclus
+    );
 }

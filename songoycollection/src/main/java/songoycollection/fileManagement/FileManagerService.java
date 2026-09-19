@@ -48,6 +48,22 @@ public class FileManagerService {
         return target;
     }
 
+    public Path resolve(String folder, String fileName) throws IOException {
+        if (fileName == null || fileName.isBlank()) {
+            throw new IOException("Nom de fichier invalide.");
+        }
+
+        String safeFolder = folder == null
+                ? "articles"
+                : folder.replaceAll("[^a-zA-Z0-9_-]", "");
+        Path directory = uploadRoot.resolve(safeFolder).normalize();
+        Path target = directory.resolve(fileName).normalize();
+        if (!directory.startsWith(uploadRoot) || !target.startsWith(directory)) {
+            throw new IOException("Chemin de fichier invalide.");
+        }
+        return target;
+    }
+
     public void delete(Path file) throws IOException {
         if (file == null) return;
         Path safe = file.toAbsolutePath().normalize();

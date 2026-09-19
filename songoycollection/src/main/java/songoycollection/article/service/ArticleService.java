@@ -4,7 +4,10 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import jakarta.persistence.EntityManager;
 import songoycollection.article.dtos.ArticleRequestDto;
@@ -29,6 +32,7 @@ import songoycollection.personne.shared.PersonnelUtiliShared;
 import songoycollection.shared.EnumShared;
 import songoycollection.shared.RepositoryService;
 
+import java.io.IOException;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -40,6 +44,8 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class ArticleService {
+
+    private static final Logger log = LoggerFactory.getLogger(ArticleService.class);
 
     private final RepositoryService repo;
     private final PersonnelUtiliShared personnelUtiliShared;
@@ -65,6 +71,7 @@ public class ArticleService {
     public Object addArticleVariant(
             Long articleId,
             ArticleVariantRequestDto request,
+            MultipartFile image,
             Long idAdmin
     ) {
         personnelUtiliShared.getPersonnelRoleIsActiveById(
@@ -76,13 +83,16 @@ public class ArticleService {
                 || request.getReference().isBlank()
                 || request.getPrixVente() == null || request.getPrixVente() <= 0) {
             throw new IllegalArgumentException(
-                    "La rÃ©fÃ©rence et un prix de vente valide sont obligatoires."
+                    "La référence et un prix de vente valide sont obligatoires."
             );
         }
 
         String reference = request.getReference().trim();
+
         if (repo.getArticleVariantRepository().existsByReferenceIgnoreCase(reference)) {
-            throw new IllegalArgumentException("Cette rÃ©fÃ©rence de variante existe dÃ©jÃ .");
+            throw new IllegalArgumentException(
+                    "Cette référence de variante existe déjà."
+            );
         }
 
         Article article = repo.getArticleRepository().findByIdAndActiveTrue(articleId)
@@ -108,8 +118,22 @@ public class ArticleService {
             }
         });
 
-        repo.getArticleVariantRepository().save(variant);
-        return HttpCustumMessage.addMessage();
+        List<Path> createdFiles = new ArrayList<>();
+        try {
+            Path imagePath = saveVariantImage(image, createdFiles);
+            if (imagePath != null) {
+                variant.setUrlImage(imagePath.getFileName().toString());
+            }
+            repo.getArticleVariantRepository().save(variant);
+            return HttpCustumMessage.addMessage();
+        } catch (Exception exception) {
+            deleteFiles(createdFiles);
+            if (exception instanceof IllegalArgumentException illegalArgumentException) {
+                throw illegalArgumentException;
+            }
+            log.error("Erreur lors de l'enregistrement de l'image de la variante {}", reference, exception);
+            throw new IllegalStateException("Impossible d'enregistrer l'image de la variante.", exception);
+        }
     }
 
     public ArticleContextDto getArticleContext(Long articleId, Long idAdmin) {
@@ -135,20 +159,24 @@ public class ArticleService {
                 : request.getAttributs();
         for (CategoryAttribute definition : definitions) {
             String value = requestedValues.get(definition.getAttribute().getId());
+
             if (definition.isObligatoire() && (value == null || value.isBlank())) {
                 throw new IllegalArgumentException(
-                        "La caractÃ©ristique obligatoire Â« "
-                                + definition.getAttribute().getLabel() + " Â» est manquante."
+                        "La caractéristique obligatoire « "
+                                + definition.getAttribute().getLabel()
+                                + " » est manquante."
                 );
             }
         }
+
         for (Long attributeId : requestedValues.keySet()) {
             if (!allowedAttributes.containsKey(attributeId)) {
                 throw new IllegalArgumentException(
-                        "Une caractÃ©ristique ne correspond pas Ã  la catÃ©gorie de l'article."
+                        "Cette caractéristique ne correspond pas à la catégorie de l'article."
                 );
             }
         }
+
         return requestedValues;
     }
 
@@ -170,15 +198,17 @@ public class ArticleService {
     public Object updateArticleVariant(
             Long variantId,
             ArticleVariantRequestDto request,
+            MultipartFile image,
             Long idAdmin
     ) {
         personnelUtiliShared.getPersonnelRoleIsActiveById(idAdmin, EnumShared.PersonnelRole.ADMIN);
         if (request == null || request.getAttributs() == null
                 || request.getPrixVente() == null || request.getPrixVente() <= 0) {
-            throw new IllegalArgumentException("Les caractÃ©ristiques de la variante sont obligatoires.");
+            throw new IllegalArgumentException("Les caractéristiques de la variante sont obligatoires.");
         }
-ArticleVariant variant = repo.getArticleVariantRepository().findById(variantId)
+        ArticleVariant variant = repo.getArticleVariantRepository().findById(variantId)
                 .orElseThrow(() -> new IllegalArgumentException("Variante introuvable."));
+        String previousImage = variant.getUrlImage();
         variant.setPrixVente(request.getPrixVente());
         List<CategoryAttribute> definitions = repo.getCategoryAttributeRepository()
                 .findByCategoryIdOrderByOrdreAscIdAsc(variant.getArticle().getCategory().getId());
@@ -188,7 +218,7 @@ Map<Long, CategoryAttribute> allowed = new HashMap<>();
         Map<Long, String> values = request.getAttributs();
 for (Long attributeId : values.keySet()) {
             if (!allowed.containsKey(attributeId)) {
-                throw new IllegalArgumentException("CaractÃ©ristique invalide pour cet article.");
+                throw new IllegalArgumentException("Caractéristique invalide pour cet article.");
             }
         }
 
@@ -226,8 +256,81 @@ if (definition.isObligatoire()
                 );
             }
         }
-        repo.getArticleVariantRepository().save(variant);
-        return HttpCustumMessage.addMessage();
+        List<Path> createdFiles = new ArrayList<>();
+        try {
+            Path imagePath = saveVariantImage(image, createdFiles);
+            if (imagePath != null) {
+                variant.setUrlImage(imagePath.getFileName().toString());
+            }
+            repo.getArticleVariantRepository().save(variant);
+            if (imagePath != null && previousImage != null
+                    && !previousImage.equals(imagePath.getFileName().toString())) {
+                deleteProcessedImage(previousImage, "article-variants");
+            }
+            return HttpCustumMessage.addMessage();
+        } catch (Exception exception) {
+            deleteFiles(createdFiles);
+            if (exception instanceof IllegalArgumentException illegalArgumentException) {
+                throw illegalArgumentException;
+            }
+            log.error("Erreur lors de la modification de l'image de la variante {}", variantId, exception);
+            throw new IllegalStateException("Impossible d'enregistrer l'image de la variante.", exception);
+        }
+    }
+
+    private Path saveVariantImage(MultipartFile image, List<Path> createdFiles) throws IOException {
+        if (image == null || image.isEmpty()) {
+            return null;
+        }
+        String contentType = image.getContentType();
+        if (contentType == null || !contentType.toLowerCase().startsWith("image/")) {
+            throw new IllegalArgumentException("Le fichier de la variante doit être une image.");
+        }
+        if (image.getSize() > 5 * 1024 * 1024) {
+            throw new IllegalArgumentException("L'image de la variante ne doit pas dépasser 5 Mo.");
+        }
+
+        Path original = fileManager.save(image, "article-variants");
+        createdFiles.add(original);
+        for (Path generated : imageProcessing.process(original)) {
+            if (!createdFiles.contains(generated)) {
+                createdFiles.add(generated);
+            }
+        }
+        return original;
+    }
+
+    private void deleteFiles(List<Path> files) {
+        files.forEach(path -> {
+            try {
+                fileManager.delete(path);
+            } catch (Exception ignored) {
+                // Le fichier temporaire ne doit pas masquer l'erreur principale.
+            }
+        });
+    }
+
+    private void deleteProcessedImage(String storedPath, String folder) {
+        try {
+            Path original = Path.of(storedPath);
+            if (!original.isAbsolute()) {
+                original = fileManager.resolve(folder, storedPath);
+            }
+            deleteFiles(List.of(
+                    original,
+                    original.resolveSibling(stem(original) + "-thumbnail.webp"),
+                    original.resolveSibling(stem(original) + "-medium.webp"),
+                    original.resolveSibling(stem(original) + "-large.webp")
+            ));
+        } catch (IOException | RuntimeException ignored) {
+            // Une ancienne URL peut ne pas être un chemin local géré par l'application.
+        }
+    }
+
+    private String stem(Path path) {
+        String name = path.getFileName().toString();
+        int extensionIndex = name.lastIndexOf('.');
+        return extensionIndex > 0 ? name.substring(0, extensionIndex) : name;
     }
 
     public List<ArticleTypeDto> getAllArticleTypes(Long idAdmin) {
@@ -288,6 +391,7 @@ if (definition.isObligatoire()
         );
     }
 
+    @Transactional
     public Object addArticle(ArticleRequestDto req, Long idAdmin) {
         personnelUtiliShared.getPersonnelRoleIsActiveById(idAdmin, EnumShared.PersonnelRole.ADMIN);
 
@@ -328,14 +432,14 @@ if (definition.isObligatoire()
                     createdFiles.addAll(imageProcessing.process(original));
                     ArticleImage image = new ArticleImage();
                     image.setArticle(article);
-                    image.setUrlImage(original.toString());
+                    image.setUrlImage(original.getFileName().toString());
                     entityManager.persist(image);
                 }
             } catch (Exception exception) {
                 for (Path path : createdFiles) {
                     try { fileManager.delete(path); } catch (Exception ignored) { }
                 }
-                repo.getArticleRepository().delete(article);
+                log.error("Erreur lors de l'enregistrement des images de l'article {}", article.getId(), exception);
                 throw new IllegalStateException("Impossible d'enregistrer les images de l'article.", exception);
             }
         }

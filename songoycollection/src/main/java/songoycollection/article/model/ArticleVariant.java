@@ -27,6 +27,8 @@ public class ArticleVariant {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     private Article article;
 
+    private String urlImage;
+
     @Column(unique = true)
     private String reference;
 

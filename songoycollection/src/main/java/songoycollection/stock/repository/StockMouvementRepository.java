@@ -8,9 +8,55 @@ import songoycollection.shared.EnumShared;
 import songoycollection.stock.model.StockMouvement;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Repository
 public interface StockMouvementRepository extends JpaRepository<StockMouvement, Long> {
+
+    @Query("""
+            select m
+            from StockMouvement m
+            join fetch m.stockLot lot
+            join fetch m.variant variant
+            join fetch variant.article article
+            join fetch article.category category
+            left join fetch article.articleType articleType
+            left join fetch lot.ligneAchat ligneAchat
+            left join fetch ligneAchat.achat achat
+            left join fetch achat.fournisseur fournisseur
+            left join fetch achat.adminResponsable responsableAchat
+            left join fetch m.ligneVente ligneVente
+            left join fetch ligneVente.vente vente
+            left join fetch vente.client client
+            left join fetch vente.caissier caissier
+            where category.entite = :entite
+              and m.dateEntree >= :debut
+              and m.dateEntree < :finExclusive
+              and (:type is null or m.type = :type)
+              and (
+                    :recherche is null
+                    or lower(coalesce(category.nom, '')) like :recherche
+                    or lower(coalesce(articleType.nom, '')) like :recherche
+                    or lower(coalesce(variant.reference, '')) like :recherche
+                    or lower(coalesce(m.reference, '')) like :recherche
+                    or lower(coalesce(achat.numeroFacture, '')) like :recherche
+                    or lower(coalesce(vente.numeroFacture, '')) like :recherche
+                    or lower(coalesce(fournisseur.nom, '')) like :recherche
+                    or lower(coalesce(fournisseur.prenom, '')) like :recherche
+                    or lower(coalesce(achat.nomFournisseur, '')) like :recherche
+                    or lower(coalesce(client.nom, '')) like :recherche
+                    or lower(coalesce(client.prenom, '')) like :recherche
+                    or lower(coalesce(vente.nomClient, '')) like :recherche
+              )
+            order by m.dateEntree desc, m.id desc
+            """)
+    List<StockMouvement> findHistoriqueByFilters(
+            @Param("entite") EnumShared.Entite entite,
+            @Param("debut") LocalDateTime debut,
+            @Param("finExclusive") LocalDateTime finExclusive,
+            @Param("type") EnumShared.TypeMouvement type,
+            @Param("recherche") String recherche
+    );
 
     /** Coût d'achat des lots consommés par les ventes sur une période. */
     @Query("""

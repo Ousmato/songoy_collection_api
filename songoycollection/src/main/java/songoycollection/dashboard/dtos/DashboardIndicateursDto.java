@@ -22,6 +22,12 @@ public class DashboardIndicateursDto {
     /** Nombre de ventes distinctes ayant au moins une ligne active sur la période. */
     private long ventesJour;
 
+    /** Coût d'achat des stocks reçus sur la période. */
+    private BigDecimal valeurEntree = BigDecimal.ZERO;
+
+    /** Coût d'achat des lots consommés par les ventes sur la période. */
+    private BigDecimal valeurSortie = BigDecimal.ZERO;
+
     /**
      * Résultat estimé de la période : CA - coût des articles vendus - dépenses
      * imputées à l'entité sélectionnée.

@@ -57,6 +57,12 @@ public class DashboardService {
                 debutPeriode,
                 finPeriode
         ));
+        BigDecimal valeurEntree = money(repositoryService.getStockMouvementRepository().sumCostByTypeAndDateBetween(
+                EnumShared.TypeMouvement.ACHAT,
+                entite,
+                debutPeriode,
+                finPeriode
+        ));
         BigDecimal depensesMois = amount(repositoryService.getDepenseRepository().sumAmountBetween(
                 entite,
                 debutPeriode,
@@ -67,6 +73,8 @@ public class DashboardService {
         DashboardIndicateursDto dto = new DashboardIndicateursDto();
         dto.setCaJour(caJour);
         dto.setVentesJour(repositoryService.getVenteRepository().countActiveBetween(entite, debutPeriode, finPeriode));
+        dto.setValeurEntree(valeurEntree);
+        dto.setValeurSortie(coutVenduMois);
         dto.setBeneficeEstime(beneficeEstime.setScale(2, RoundingMode.HALF_UP));
         dto.setValeurStock(money(repositoryService.getStockLotRepository().sumAccountingValue(entite)));
         return dto;

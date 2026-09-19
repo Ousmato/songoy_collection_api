@@ -72,10 +72,14 @@ public class ArticleImageProcessingService {
             writeJpeg(resize(source, maxWidth, maxHeight), original, jpegQuality);
             createdFiles.add(original);
 
-            Path directory = original.getParent();
-            createdFiles.add(writeWebp(source, directory.resolve(stem(original) + "-thumbnail.webp"), thumbnailWidth, thumbnailHeight));
-            createdFiles.add(writeWebp(source, directory.resolve(stem(original) + "-medium.webp"), mediumWidth, mediumHeight));
-            createdFiles.add(writeWebp(source, directory.resolve(stem(original) + "-large.webp"), largeWidth, largeHeight));
+            // WebP est optionnel : le JDK ne fournit pas d'encodeur WebP par défaut.
+            // L'image JPEG principale reste suffisante si aucun plugin WebP n'est installé.
+            if (hasWebpEncoder()) {
+                Path directory = original.getParent();
+                createdFiles.add(writeWebp(source, directory.resolve(stem(original) + "-thumbnail.webp"), thumbnailWidth, thumbnailHeight));
+                createdFiles.add(writeWebp(source, directory.resolve(stem(original) + "-medium.webp"), mediumWidth, mediumHeight));
+                createdFiles.add(writeWebp(source, directory.resolve(stem(original) + "-large.webp"), largeWidth, largeHeight));
+            }
             return createdFiles;
         } catch (IOException | RuntimeException exception) {
             for (Path path : createdFiles) {
@@ -128,6 +132,10 @@ public class ArticleImageProcessingService {
             writer.dispose();
         }
         return path;
+    }
+
+    private boolean hasWebpEncoder() {
+        return ImageIO.getImageWritersByFormatName("webp").hasNext();
     }
 
     private BufferedImage resize(BufferedImage source, int maximumWidth, int maximumHeight) {

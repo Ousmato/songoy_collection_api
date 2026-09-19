@@ -2,7 +2,9 @@ package songoycollection.article.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import songoycollection.article.dtos.ArticleRequestDto;
 import songoycollection.article.dtos.ArticleTypeRequestDto;
 import songoycollection.article.dtos.ArticleVariantRequestDto;
@@ -39,15 +41,19 @@ public class ArticleController {
         return serviceShared.getArticleService().addArticle(dto, idAdmin);
     }
 
-    @PostMapping("add-article-variant/{articleId}/{idAdmin}")
-    @Operation(summary = "Ajouter une variante à un article")
+    @PostMapping(
+            value = "add-article-variant/{articleId}/{idAdmin}",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
+    @Operation(summary = "Ajouter une variante, avec image facultative")
     public Object addArticleVariant(
             @PathVariable Long articleId,
             @PathVariable Long idAdmin,
-            @RequestBody ArticleVariantRequestDto request
+            @RequestPart("request") ArticleVariantRequestDto request,
+            @RequestPart(value = "image", required = false) MultipartFile image
     ) {
         return serviceShared.getArticleService()
-                .addArticleVariant(articleId, request, idAdmin);
+                .addArticleVariant(articleId, request, image, idAdmin);
     }
 
     @GetMapping("get-article-context/{articleId}/{idAdmin}")
@@ -85,14 +91,18 @@ public class ArticleController {
                 .getArticleVariants(articleId, idAdmin);
     }
 
-    @PutMapping("update-article-variant/{variantId}/{idAdmin}")
-    @Operation(summary = "Modifier les caractéristiques d'une variante")
+    @PutMapping(
+            value = "update-article-variant/{variantId}/{idAdmin}",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
+    @Operation(summary = "Modifier une variante, avec image facultative")
     public Object updateArticleVariant(
             @PathVariable Long variantId,
             @PathVariable Long idAdmin,
-            @RequestBody ArticleVariantRequestDto request
+            @RequestPart("request") ArticleVariantRequestDto request,
+            @RequestPart(value = "image", required = false) MultipartFile image
     ) {
         return serviceShared.getArticleService()
-                .updateArticleVariant(variantId, request, idAdmin);
+                .updateArticleVariant(variantId, request, image, idAdmin);
     }
 }

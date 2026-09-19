@@ -25,6 +25,8 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static songoycollection.personne.service.FournisseurService.getPersonnelAchatDto;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(propagation = Propagation.MANDATORY, readOnly = true)
@@ -187,18 +189,13 @@ public class AchatHelperService {
         dto.setNom(achat.getFournisseur().getNom());
         dto.setPrenom(achat.getFournisseur().getPrenom());
         dto.setTelephone(achat.getFournisseur().getTelephone());
+        dto.setAdresse(achat.getFournisseur().getAdresse());
+        dto.setAdminResponsable(toPersonnel(achat.getFournisseur().getAdminResponsable()));
         return dto;
     }
 
     private PersonnelAchatDto toPersonnel(Personnel personnel) {
-        if (personnel == null) {
-            return null;
-        }
-        PersonnelAchatDto dto = new PersonnelAchatDto();
-        dto.setId(personnel.getId());
-        dto.setNom(personnel.getNom());
-        dto.setPrenom(personnel.getPrenom());
-        return dto;
+        return getPersonnelAchatDto(personnel);
     }
 
     private String supplierName(Achat achat) {

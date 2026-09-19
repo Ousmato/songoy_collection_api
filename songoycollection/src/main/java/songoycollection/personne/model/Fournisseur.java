@@ -1,9 +1,6 @@
 package songoycollection.personne.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.Data;
@@ -28,4 +25,7 @@ public class Fournisseur {
     @NotBlank(message = "Le numéro de téléphone est obligatoire.")
     @Pattern(regexp = "^[0-9]{8}$", message = "Le numéro de téléphone doit contenir exactement 8 chiffres.")
     private String telephone;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Personnel adminResponsable;
 }

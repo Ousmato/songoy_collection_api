@@ -5,18 +5,24 @@ import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import songoycollection.config.HttpCustumMessage;
 import songoycollection.personne.dtos.PersonnelDto;
 import songoycollection.personne.dtos.LoginRequestDto;
 import songoycollection.personne.dtos.LoginResponseDto;
+import songoycollection.personne.dtos.ClientResponseDto;
+import songoycollection.personne.dtos.PersonnelMenuStatsDto;
+import songoycollection.personne.dtos.SimplePersonnelResponseDto;
 import songoycollection.personne.model.Personnel;
 import songoycollection.personne.shared.PersonnelUtiliShared;
 import songoycollection.shared.RepositoryService;
 import songoycollection.shared.EnumShared;
 
 import java.util.Set;
+import java.util.List;
 import java.security.SecureRandom;
+import java.nio.file.AccessDeniedException;
 
 @Service
 @RequiredArgsConstructor
@@ -33,7 +39,6 @@ public class AdminService {
         Personnel personnel = PersonnelDto.toPersonnel(requestDto);
         EnumShared.PersonnelRole requestedRole = personnel.getRole();
         EnumShared.Entite requestedEntite = personnel.getEntite();
-
         if (requestedRole == null) {
             throw new IllegalArgumentException("Le rôle est obligatoire");
         }
@@ -52,13 +57,23 @@ public class AdminService {
         } else {
             throw new IllegalArgumentException("Personnel non autorisé à créer un compte");
         }
+        List<EnumShared.PersonnelRole> rolesExclus = List.of(
+                EnumShared.PersonnelRole.CLIENT,
+                EnumShared.PersonnelRole.APPRENANT,
+                EnumShared.PersonnelRole.LIVREUR,
+                EnumShared.PersonnelRole.JUNIOR,
+                EnumShared.PersonnelRole.MENTOR
+        );
+        if (!rolesExclus.contains(requestDto.getRole())){
+            String accessCode;
+            do {
+                accessCode = "SON-" + String.format("%06d", RANDOM.nextInt(1_000_000));
+            } while (repo.getPersonnelRepository().existsByAccessCode(accessCode));
+            personnel.setAccessCode(accessCode);
+            personnel.setPassword(passwordEncoder.encode(accessCode));
 
-        String accessCode;
-        do {
-            accessCode = "SON-" + String.format("%06d", RANDOM.nextInt(1_000_000));
-        } while (repo.getPersonnelRepository().existsByAccessCode(accessCode));
-        personnel.setAccessCode(accessCode);
-        personnel.setPassword(passwordEncoder.encode(accessCode));
+        }
+
         personnel.setActive(true);
         Set<ConstraintViolation<Personnel>> violations = validator.validate(personnel);
         if (!violations.isEmpty()) {
@@ -66,6 +81,103 @@ public class AdminService {
         }
         repo.getPersonnelRepository().save(personnel);
         return HttpCustumMessage.addMessage();
+    }
+
+    public List<SimplePersonnelResponseDto> loadPersonnel(Long idAdmin) throws AccessDeniedException {
+        Personnel requester = personnelUtiliShared.getPersonnelById(idAdmin);
+        List<Personnel> personnel;
+        List<EnumShared.PersonnelRole> rolesExclus = List.of(
+                EnumShared.PersonnelRole.CLIENT,
+                EnumShared.PersonnelRole.ADMIN,
+                EnumShared.PersonnelRole.SUPER_ADMIN
+        );
+
+        if (requester.getRole() == EnumShared.PersonnelRole.SUPER_ADMIN) {
+            personnel = repo.getPersonnelRepository().findAllByActiveTrueAndRoleAndEntiteOrderByNomAscPrenomAsc(
+                    EnumShared.PersonnelRole.ADMIN,
+                    EnumShared.Entite.GLOBAL
+            );
+        } else if (requester.getRole() == EnumShared.PersonnelRole.ADMIN) {
+            if (requester.getEntite() == EnumShared.Entite.GLOBAL) {
+                personnel = repo.getPersonnelRepository()
+                        .findAllByEntiteInAndActiveTrueAndRoleNotInOrderByNomAscPrenomAsc(
+                                List.of(EnumShared.Entite.BOUTIQUE, EnumShared.Entite.ATELIER),
+                                rolesExclus
+                        );
+            } else if (requester.getEntite() == EnumShared.Entite.BOUTIQUE
+                    || requester.getEntite() == EnumShared.Entite.ATELIER) {
+                personnel = repo.getPersonnelRepository()
+                        .findAllByEntiteInAndActiveTrueAndRoleNotInOrderByNomAscPrenomAsc(
+                                List.of(requester.getEntite()),
+                                rolesExclus
+                        );
+            } else {
+                throw new AccessDeniedException("L'entité de cet Admin ne permet pas de gérer le personnel.");
+            }
+        } else {
+            throw new AccessDeniedException("Seul un Admin peut consulter la liste du personnel.");
+        }
+
+        return personnel.stream()
+                .map(SimplePersonnelResponseDto::fromPersonnel)
+                .toList();
+    }
+
+    public List<ClientResponseDto> loadClients(Long idAdmin) throws AccessDeniedException {
+        Personnel requester = personnelUtiliShared.getPersonnelById(idAdmin);
+        if (requester.getRole() != EnumShared.PersonnelRole.ADMIN
+                && requester.getRole() != EnumShared.PersonnelRole.SUPER_ADMIN) {
+            throw new AccessDeniedException("Seul un Admin peut consulter la liste des clients.");
+        }
+
+        return repo.getPersonnelRepository()
+                .findAllByActiveTrueAndRoleOrderByNomAscPrenomAsc(EnumShared.PersonnelRole.CLIENT)
+                .stream()
+                .map(ClientResponseDto::fromPersonnel)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PersonnelMenuStatsDto getPersonnelMenuStats(Long idAdmin) throws AccessDeniedException {
+        Personnel requester = personnelUtiliShared.getPersonnelById(idAdmin);
+        if (requester.getRole() != EnumShared.PersonnelRole.ADMIN
+                && requester.getRole() != EnumShared.PersonnelRole.SUPER_ADMIN) {
+            throw new AccessDeniedException("Seul un Admin peut consulter les statistiques du personnel.");
+        }
+
+        List<EnumShared.PersonnelRole> rolesExclus = List.of(
+                EnumShared.PersonnelRole.CLIENT,
+                EnumShared.PersonnelRole.ADMIN,
+                EnumShared.PersonnelRole.SUPER_ADMIN
+        );
+
+        long nombrePersonnel;
+        if (requester.getRole() == EnumShared.PersonnelRole.SUPER_ADMIN) {
+            nombrePersonnel = repo.getPersonnelRepository().countByActiveTrueAndRoleAndEntite(
+                    EnumShared.PersonnelRole.ADMIN,
+                    EnumShared.Entite.GLOBAL
+            );
+        } else if (requester.getEntite() == EnumShared.Entite.GLOBAL) {
+            nombrePersonnel = repo.getPersonnelRepository().countByEntiteInAndActiveTrueAndRoleNotIn(
+                    List.of(EnumShared.Entite.BOUTIQUE, EnumShared.Entite.ATELIER),
+                    rolesExclus
+            );
+        } else if (requester.getEntite() == EnumShared.Entite.BOUTIQUE
+                || requester.getEntite() == EnumShared.Entite.ATELIER) {
+            nombrePersonnel = repo.getPersonnelRepository().countByEntiteInAndActiveTrueAndRoleNotIn(
+                    List.of(requester.getEntite()),
+                    rolesExclus
+            );
+        } else {
+            throw new AccessDeniedException("L'entité de cet Admin ne permet pas de gérer le personnel.");
+        }
+
+        PersonnelMenuStatsDto dto = new PersonnelMenuStatsDto();
+        dto.setNombreClients(repo.getPersonnelRepository()
+                .countByActiveTrueAndRole(EnumShared.PersonnelRole.CLIENT));
+        dto.setNombreFournisseurs(repo.getFourniseurRepository().count());
+        dto.setNombrePersonnel(nombrePersonnel);
+        return dto;
     }
 
     public LoginResponseDto login(LoginRequestDto requestDto) {

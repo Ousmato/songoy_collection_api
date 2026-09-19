@@ -9,6 +9,8 @@ import songoycollection.category.service.CategoryService;
 import songoycollection.depense.service.DepenseService;
 import songoycollection.achat.service.ReceptionService;
 import songoycollection.personne.service.AdminService;
+import songoycollection.personne.service.FournisseurService;
+import songoycollection.setting.service.SettingMenuStatsService;
 import songoycollection.vente.service.VenteService;
 
 @Data
@@ -29,4 +31,8 @@ public class ServiceShared {
     private final DepenseService depenseService;
 
     private final ReceptionService receptionService;
+
+    private final FournisseurService fournisseurService;
+
+    private final SettingMenuStatsService settingMenuStatsService;
 }

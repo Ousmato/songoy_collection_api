@@ -13,6 +13,7 @@ import songoycollection.category.repository.CategoryRepository;
 import songoycollection.category.repository.CategoryAttributeRepository;
 import songoycollection.category.repository.AttributeDefinitionRepository;
 import songoycollection.depense.repository.DepenseRepository;
+import songoycollection.personne.repository.FourniseurRepository;
 import songoycollection.personne.repository.PersonnelRepository;
 import songoycollection.reglement.repository.ReglementRepository;
 import songoycollection.stock.repository.StockLotRepository;
@@ -55,4 +56,6 @@ public class RepositoryService {
     private final LigneVenteRepository ligneVenteRepository;
 
     private final StockMouvementRepository stockMouvementRepository;
+
+    private final FourniseurRepository fourniseurRepository;
 }

@@ -30,11 +30,10 @@ public class Personnel {
     @Pattern(regexp = "^[0-9]{8}$", message = "Le numéro de téléphone doit contenir exactement 8 chiffres.")
     private String telephone;
 
-    @NotNull(message = "Mot de passe obligatoire.")
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 
-    @Column(nullable = false, unique = true, updatable = false)
+    @Column(unique = true, updatable = false)
     private String accessCode;
 
     private LocalDate dateNaissance;
