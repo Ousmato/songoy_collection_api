@@ -11,6 +11,9 @@ import org.springframework.web.bind.annotation.RestController;
 import songoycollection.config.HttpCustumMessage;
 import songoycollection.depense.dtos.DepenseRequest;
 import songoycollection.depense.dtos.DepenseHistoriqueDto;
+import songoycollection.depense.dtos.SalaireHistoriqueDto;
+import songoycollection.depense.dtos.SalaireStatistiquesDto;
+import songoycollection.shared.EnumShared;
 import songoycollection.shared.ServiceShared;
 
 import org.springframework.format.annotation.DateTimeFormat;
@@ -45,5 +48,33 @@ public class DepenseController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fin
     ) {
         return serviceShared.getDepenseService().getDepenses(idAdmin, debut, fin);
+    }
+
+    @GetMapping("get-historique-salaires/{idAdmin}")
+    @Operation(summary = "Recuperer l'historique des salaires verses")
+    public List<SalaireHistoriqueDto> getHistoriqueSalaires(
+            @PathVariable Long idAdmin,
+            @RequestParam(required = false) EnumShared.Entite entite,
+            @RequestParam(required = false) String periodeSalaire
+    ) {
+        return serviceShared.getDepenseService().getHistoriqueSalaires(
+                idAdmin,
+                entite,
+                periodeSalaire
+        );
+    }
+
+    @GetMapping("get-statistiques-salaires/{idAdmin}")
+    @Operation(summary = "Recuperer les statistiques de paiement des salaires")
+    public SalaireStatistiquesDto getStatistiquesSalaires(
+            @PathVariable Long idAdmin,
+            @RequestParam(required = false) EnumShared.Entite entite,
+            @RequestParam String periodeSalaire
+    ) {
+        return serviceShared.getDepenseService().getStatistiquesSalaires(
+                idAdmin,
+                entite,
+                periodeSalaire
+        );
     }
 }

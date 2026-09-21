@@ -9,6 +9,9 @@ import songoycollection.article.repository.ArticleRepository;
 import songoycollection.article.repository.ArticleTypeRepository;
 import songoycollection.article.repository.ArticleVariantRepository;
 import songoycollection.article.repository.ArticleVariantAttributeRepository;
+import songoycollection.article.repository.ModeleArticleRepository;
+import songoycollection.article.repository.DeclinaisonRepository;
+import songoycollection.article.repository.DeclinaisonAttributeRepository;
 import songoycollection.category.repository.CategoryRepository;
 import songoycollection.category.repository.CategoryAttributeRepository;
 import songoycollection.category.repository.AttributeDefinitionRepository;
@@ -40,6 +43,12 @@ public class RepositoryService {
     private final ArticleVariantRepository articleVariantRepository;
 
     private final ArticleVariantAttributeRepository articleVariantAttributeRepository;
+
+    private final ModeleArticleRepository modeleArticleRepository;
+
+    private final DeclinaisonRepository declinaisonRepository;
+
+    private final DeclinaisonAttributeRepository declinaisonAttributeRepository;
 
     private final StockLotRepository stockLotRepository;
 

@@ -34,7 +34,7 @@ public interface VenteRepository extends JpaRepository<Vente, Long> {
             from Vente v
             join LigneVente l on l.vente = v
             where l.annulee = false
-              and l.variant.article.category.entite = :entite
+              and l.variant.declinaison.modeleArticle.article.category.entite = :entite
               and v.date >= :debut
               and v.date < :finExclusive
             """)
@@ -50,7 +50,7 @@ public interface VenteRepository extends JpaRepository<Vente, Long> {
             join LigneVente l on l.vente = v
             left join fetch v.client
             where l.annulee = false
-              and l.variant.article.category.entite = :entite
+              and l.variant.declinaison.modeleArticle.article.category.entite = :entite
               and v.date >= :debut
               and v.date < :finExclusive
             order by v.date desc, v.id desc

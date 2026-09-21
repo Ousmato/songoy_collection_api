@@ -95,8 +95,9 @@ public class ReceptionHelperService {
         for (Long id : request.lignes().stream().map(ReceptionRequest.Ligne::variantId).sorted().toList()) {
             ArticleVariant variant = variantsRepository.findForStockUpdate(id)
                     .orElseThrow(() -> new IllegalArgumentException("Variante introuvable : " + id));
-            var category = variant.getArticle().getCategory();
-            if (!variant.getArticle().isActive() || !category.isActive()) {
+            var article = variant.getDeclinaison().getModeleArticle().getArticle();
+            var category = article.getCategory();
+            if (!article.isActive() || !category.isActive()) {
                 throw new IllegalArgumentException("L'article ou sa catégorie est inactif.");
             }
             if (category.getEntite() == EnumShared.Entite.ATELIER) {

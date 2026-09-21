@@ -22,6 +22,8 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
     """)
     List<Object[]> countArticlesByCategoryIds(@Param("ids") List<Long> ids);
 
+    long countByCategoryId(Long categoryId);
+
     @EntityGraph(attributePaths = {"category", "articleType"})
     Optional<Article> findByIdAndActiveTrue(Long id);
 

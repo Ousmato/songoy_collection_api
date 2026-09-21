@@ -20,6 +20,54 @@ public interface DepenseRepository extends JpaRepository<Depense, Long> {
     );
 
     @Query("""
+            select d
+            from Depense d
+            join fetch d.personnelResponsable
+            left join fetch d.personnelBeneficiaire
+            where d.motifDepense = :motif
+              and (:entite is null or d.entite = :entite)
+              and (:periodeSalaire is null or d.periodeSalaire = :periodeSalaire)
+            order by d.date desc, d.id desc
+            """)
+    List<Depense> findHistoriqueSalaires(
+            @Param("motif") EnumShared.MotifDepense motif,
+            @Param("entite") EnumShared.Entite entite,
+            @Param("periodeSalaire") String periodeSalaire
+    );
+
+    @Query("""
+            select coalesce(sum(d.montant), 0)
+            from Depense d
+            where d.motifDepense = :motif
+              and d.periodeSalaire = :periodeSalaire
+              and (:entite is null or d.entite = :entite)
+            """)
+    BigDecimal sumMontantSalairesParPeriode(
+            @Param("motif") EnumShared.MotifDepense motif,
+            @Param("periodeSalaire") String periodeSalaire,
+            @Param("entite") EnumShared.Entite entite
+    );
+
+    @Query("""
+            select count(distinct beneficiaire.id)
+            from Depense d
+            join d.personnelBeneficiaire beneficiaire
+            where d.motifDepense = :motif
+              and d.periodeSalaire = :periodeSalaire
+              and d.montant > 0
+              and beneficiaire.active = true
+              and beneficiaire.role not in :rolesExclus
+              and (:entite is null or d.entite = :entite)
+              and (:entite is null or beneficiaire.entite = :entite)
+            """)
+    long countBeneficiairesPayesParPeriode(
+            @Param("motif") EnumShared.MotifDepense motif,
+            @Param("periodeSalaire") String periodeSalaire,
+            @Param("entite") EnumShared.Entite entite,
+            @Param("rolesExclus") List<EnumShared.PersonnelRole> rolesExclus
+    );
+
+    @Query("""
             select coalesce(sum(d.montant), 0)
             from Depense d
             where d.entite = :entite

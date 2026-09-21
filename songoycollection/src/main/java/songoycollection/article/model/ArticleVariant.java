@@ -11,6 +11,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,11 +24,11 @@ public class ArticleVariant {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotNull(message = "Article obligatoire")
+    @NotNull(message = "Déclinaison obligatoire")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    private Article article;
-
-    private String urlImage;
+    @JoinColumn(name = "declinaison_id", nullable = false)
+    @EqualsAndHashCode.Exclude
+    private Declinaison declinaison;
 
     @Column(unique = true)
     private String reference;

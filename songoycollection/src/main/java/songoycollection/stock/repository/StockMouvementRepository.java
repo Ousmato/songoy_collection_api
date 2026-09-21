@@ -13,14 +13,20 @@ import java.util.List;
 @Repository
 public interface StockMouvementRepository extends JpaRepository<StockMouvement, Long> {
 
+    boolean existsByVariantId(Long variantId);
+
     @Query("""
-            select m
+            select distinct m
             from StockMouvement m
             join fetch m.stockLot lot
             join fetch m.variant variant
-            join fetch variant.article article
+            join fetch variant.declinaison declinaison
+            join fetch declinaison.modeleArticle modele
+            join fetch modele.article article
             join fetch article.category category
             left join fetch article.articleType articleType
+            left join fetch variant.attributs variantAttribute
+            left join fetch variantAttribute.attribute
             left join fetch lot.ligneAchat ligneAchat
             left join fetch ligneAchat.achat achat
             left join fetch achat.fournisseur fournisseur
@@ -65,7 +71,7 @@ public interface StockMouvementRepository extends JpaRepository<StockMouvement, 
             join m.stockLot lot
             join lot.ligneAchat ligne
             where m.type = :type
-              and lot.variant.article.category.entite = :entite
+              and lot.variant.declinaison.modeleArticle.article.category.entite = :entite
               and m.dateEntree >= :debut
               and m.dateEntree < :finExclusive
               and ligne.annulee = false

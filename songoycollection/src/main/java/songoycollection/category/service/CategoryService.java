@@ -5,6 +5,8 @@ import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import songoycollection.category.dtos.CategoryNameUpdateRequestDto;
 import songoycollection.category.dtos.CategoryAttributeDto;
 import songoycollection.category.dtos.CategoryResponseDto;
 import songoycollection.category.dtos.CategoryAttributeRequestDto;
@@ -39,6 +41,49 @@ public class CategoryService {
         }
         repo.getCategoryRepository().save(category);
         return HttpCustumMessage.addMessage();
+    }
+
+    @Transactional
+    public Object updateCategoryName(
+            Long categoryId,
+            CategoryNameUpdateRequestDto request,
+            Long idAdmin
+    ) {
+        validateAdmin(idAdmin);
+        if (request == null || request.getNom() == null || request.getNom().isBlank()) {
+            throw new IllegalArgumentException("Le nom de la categorie est obligatoire.");
+        }
+        String nom = request.getNom().trim();
+        if (nom.length() > 255) {
+            throw new IllegalArgumentException(
+                    "Le nom de la categorie ne peut pas depasser 255 caracteres."
+            );
+        }
+
+        Category category = findCategory(categoryId);
+        category.setNom(nom);
+        repo.getCategoryRepository().save(category);
+        return HttpCustumMessage.updateMessage();
+    }
+
+    @Transactional
+    public Object deleteCategory(Long categoryId, Long idAdmin) {
+        validateAdmin(idAdmin);
+        Category category = findCategory(categoryId);
+
+        long articleCount = repo.getArticleRepository().countByCategoryId(categoryId);
+        if (articleCount > 0) {
+            throw new IllegalArgumentException(
+                    "Impossible de supprimer cette categorie : " + articleCount
+                            + " article(s) y sont associes."
+            );
+        }
+
+        // Les definitions d'attributs sont partagees : seules les associations a cette
+        // categorie sont retirees avant sa suppression.
+        repo.getCategoryAttributeRepository().deleteByCategoryId(categoryId);
+        repo.getCategoryRepository().delete(category);
+        return HttpCustumMessage.deleteMessage();
     }
 
 
@@ -126,9 +171,10 @@ public class CategoryService {
     private void validateAttributeRequest(CategoryAttributeRequestDto request) {
         if (request == null || request.getKey() == null || request.getKey().isBlank()
                 || request.getLabel() == null || request.getLabel().isBlank()
-                || request.getType() == null || request.getType().isBlank()) {
+                || request.getType() == null || request.getType().isBlank()
+                || request.getNiveau() == null) {
             throw new IllegalArgumentException(
-                    "La cle, le libelle et le type de l'attribut sont obligatoires."
+                    "La cle, le libelle, le type et le niveau de l'attribut sont obligatoires."
             );
         }
 
@@ -180,6 +226,7 @@ public class CategoryService {
         association.setAttribute(definition);
         association.setObligatoire(request.isObligatoire());
         association.setOrdre(request.getOrdre() == null ? 0 : request.getOrdre());
+        association.setNiveau(request.getNiveau());
 
         Set<ConstraintViolation<CategoryAttribute>> violations = validator.validate(association);
         if (!violations.isEmpty()) {

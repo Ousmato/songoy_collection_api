@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import songoycollection.depense.dtos.DepenseRequest;
 import songoycollection.depense.dtos.DepenseHistoriqueDto;
+import songoycollection.depense.dtos.SalaireHistoriqueDto;
 import songoycollection.depense.model.Depense;
 import songoycollection.personne.model.Personnel;
 import songoycollection.personne.model.Fournisseur;
@@ -17,6 +18,8 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.time.format.DateTimeParseException;
 
 /** Validations et construction d'une dépense dans la transaction appelante. */
 @Service
@@ -69,6 +72,9 @@ public class DepenseHelperService {
                     "Le bénéficiaire est obligatoire pour une dépense de salaire."
             );
         }
+        if (request.motif() == EnumShared.MotifDepense.SALAIRE) {
+            validateSalaryPeriod(request.periodeSalaire());
+        }
     }
 
     public Personnel loadResponsible(Long idAdmin) {
@@ -115,6 +121,9 @@ public class DepenseHelperService {
         depense.setLibelle(request.libelle());
         depense.setMontant(request.montant().setScale(2, RoundingMode.HALF_UP));
         depense.setModePaiement(request.modePaiement());
+        depense.setPeriodeSalaire(request.motif() == EnumShared.MotifDepense.SALAIRE
+                ? request.periodeSalaire().trim()
+                : null);
         depense.setPersonnelResponsable(responsable);
         depense.setPersonnelBeneficiaire(beneficiaire);
         depense.setFournisseur(fournisseur);
@@ -151,6 +160,46 @@ public class DepenseHelperService {
             dto.setFournisseur(depense.getNomFournisseur());
         }
         return dto;
+    }
+
+    public SalaireHistoriqueDto toSalaryHistoryDto(Depense depense) {
+        SalaireHistoriqueDto dto = new SalaireHistoriqueDto();
+        dto.setId(depense.getId());
+        dto.setDatePaiement(depense.getDate());
+        dto.setPeriodeSalaire(depense.getPeriodeSalaire());
+        dto.setEntite(depense.getEntite());
+        dto.setMontant(depense.getMontant());
+        dto.setModePaiement(depense.getModePaiement());
+        dto.setLibelle(depense.getLibelle());
+
+        Personnel beneficiaire = depense.getPersonnelBeneficiaire();
+        if (beneficiaire != null) {
+            dto.setPersonnelBeneficiaireId(beneficiaire.getId());
+            dto.setPersonnelBeneficiaire(personName(beneficiaire));
+            dto.setRoleBeneficiaire(beneficiaire.getRole());
+        }
+
+        Personnel responsable = depense.getPersonnelResponsable();
+        if (responsable != null) {
+            dto.setPersonnelResponsableId(responsable.getId());
+            dto.setPersonnelResponsable(personName(responsable));
+        }
+        return dto;
+    }
+
+    public void validateSalaryPeriod(String periodeSalaire) {
+        if (periodeSalaire == null || periodeSalaire.isBlank()) {
+            throw new IllegalArgumentException(
+                    "La periode de salaire est obligatoire au format AAAA-MM."
+            );
+        }
+        try {
+            YearMonth.parse(periodeSalaire.trim());
+        } catch (DateTimeParseException exception) {
+            throw new IllegalArgumentException(
+                    "La periode de salaire doit respecter le format AAAA-MM."
+            );
+        }
     }
 
     private String personName(Personnel person) {

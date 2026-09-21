@@ -5,13 +5,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import songoycollection.achat.model.Achat;
 import songoycollection.achat.model.LigneAchat;
+import songoycollection.article.model.Article;
 import songoycollection.article.model.ArticleVariant;
+import songoycollection.article.model.DeclinaisonAttribute;
 import songoycollection.personne.model.Fournisseur;
 import songoycollection.personne.model.Personnel;
 import songoycollection.personne.shared.PersonnelUtiliShared;
 import songoycollection.shared.EnumShared;
 import songoycollection.shared.RepositoryService;
 import songoycollection.stock.dtos.StockMouvementHistoriqueDto;
+import songoycollection.stock.dtos.StockMouvementAttributDto;
 import songoycollection.stock.model.StockLot;
 import songoycollection.stock.model.StockMouvement;
 import songoycollection.vente.model.Vente;
@@ -22,6 +25,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -44,20 +49,47 @@ public class StockMouvementService {
         Period period = resolvePeriod(debut, fin);
         String terme = normalizeSearch(recherche);
 
-        return repositoryService.getStockMouvementRepository().findHistoriqueByFilters(
+        List<StockMouvement> mouvements = repositoryService.getStockMouvementRepository().findHistoriqueByFilters(
                         entite,
                         period.debut().atStartOfDay(),
                         period.finExclusive().atStartOfDay(),
                         type,
                         terme
-                ).stream()
-                .map(this::toDto)
+                );
+        if (mouvements.isEmpty()) {
+            return List.of();
+        }
+
+        var declinaisonIds = mouvements.stream()
+                .map(mouvement -> declinaisonId(mouvement.getVariant()))
+                .filter(id -> id != null)
+                .collect(Collectors.toSet());
+        Map<Long, List<DeclinaisonAttribute>> attributsDeclinaisonParId = declinaisonIds.isEmpty()
+                ? Map.of()
+                : repositoryService.getDeclinaisonAttributeRepository()
+                        .findAllByDeclinaisonIdsWithAttribute(declinaisonIds)
+                        .stream()
+                        .collect(Collectors.groupingBy(attribut -> attribut.getDeclinaison().getId()));
+
+        return mouvements.stream()
+                .map(mouvement -> {
+                    Long declinaisonId = declinaisonId(mouvement.getVariant());
+                    List<DeclinaisonAttribute> attributs = declinaisonId == null
+                            ? List.of()
+                            : attributsDeclinaisonParId.getOrDefault(declinaisonId, List.of());
+                    return toDto(mouvement, attributs);
+                })
                 .toList();
     }
 
-    private StockMouvementHistoriqueDto toDto(StockMouvement mouvement) {
+    private StockMouvementHistoriqueDto toDto(
+            StockMouvement mouvement,
+            List<DeclinaisonAttribute> attributsDeclinaison
+    ) {
         StockLot lot = mouvement.getStockLot();
         ArticleVariant variante = mouvement.getVariant();
+        var declinaison = variante == null ? null : variante.getDeclinaison();
+        var modele = declinaison == null ? null : declinaison.getModeleArticle();
         LigneAchat ligneAchat = lot == null ? null : lot.getLigneAchat();
         Achat achat = ligneAchat == null ? null : ligneAchat.getAchat();
         Vente vente = mouvement.getLigneVente() == null
@@ -68,22 +100,42 @@ public class StockMouvementService {
         BigDecimal quantite = BigDecimal.valueOf(mouvement.getQuantite() == null
                 ? 0.0
                 : mouvement.getQuantite());
+        Article article = articleOf(variante);
 
         StockMouvementHistoriqueDto dto = new StockMouvementHistoriqueDto();
         dto.setIdMouvement(mouvement.getId());
         dto.setDate(mouvement.getDateEntree());
         dto.setType(mouvement.getType());
         dto.setLotId(lot == null ? null : lot.getId());
-        dto.setArticleId(variante == null || variante.getArticle() == null
-                ? null
-                : variante.getArticle().getId());
-        dto.setArticle(articleName(variante));
+        dto.setArticleId(article == null ? null : article.getId());
+        dto.setArticle(articleName(article));
+        dto.setModele(modele == null ? "" : emptyIfNull(modele.getNom()));
+        dto.setMarque(modele == null ? "" : emptyIfNull(modele.getMarque()));
         dto.setVariantId(variante == null ? null : variante.getId());
         dto.setReferenceVariante(variante == null ? "" : emptyIfNull(variante.getReference()));
-        dto.setUnite(variante == null || variante.getArticle() == null
-                || variante.getArticle().getCategory() == null
+        dto.setAttributsDeclinaison(attributsDeclinaison.stream()
+                .filter(attribut -> attribut.getAttribute() != null
+                        && attribut.getAttribute().getId() != null)
+                .map(attribut -> toAttributeDto(
+                        attribut.getAttribute().getId(),
+                        attribut.getAttribute().getLabel(),
+                        attribut.getValue()
+                ))
+                .toList());
+        dto.setAttributsVariante(variante == null || variante.getAttributs() == null
+                ? List.of()
+                : variante.getAttributs().stream()
+                        .filter(attribut -> attribut.getAttribute() != null
+                                && attribut.getAttribute().getId() != null)
+                        .map(attribut -> toAttributeDto(
+                                attribut.getAttribute().getId(),
+                                attribut.getAttribute().getLabel(),
+                                attribut.getValue()
+                        ))
+                        .toList());
+        dto.setUnite(article == null || article.getCategory() == null
                 ? null
-                : variante.getArticle().getCategory().getMesureCategory());
+                : article.getCategory().getMesureCategory());
         dto.setQuantite(mouvement.getQuantite() == null ? 0.0 : mouvement.getQuantite());
         dto.setCoutAchatUnitaire(coutUnitaire);
         dto.setValeurMouvement(coutUnitaire.multiply(quantite).setScale(2, RoundingMode.HALF_UP));
@@ -94,11 +146,32 @@ public class StockMouvementService {
         return dto;
     }
 
-    private String articleName(ArticleVariant variante) {
-        if (variante == null || variante.getArticle() == null) {
+    private Long declinaisonId(ArticleVariant variante) {
+        return variante == null || variante.getDeclinaison() == null
+                ? null
+                : variante.getDeclinaison().getId();
+    }
+
+    private StockMouvementAttributDto toAttributeDto(Long id, String label, String value) {
+        StockMouvementAttributDto dto = new StockMouvementAttributDto();
+        dto.setId(id);
+        dto.setLabel(label);
+        dto.setValue(value);
+        return dto;
+    }
+
+    private Article articleOf(ArticleVariant variante) {
+        if (variante == null || variante.getDeclinaison() == null
+                || variante.getDeclinaison().getModeleArticle() == null) {
+            return null;
+        }
+        return variante.getDeclinaison().getModeleArticle().getArticle();
+    }
+
+    private String articleName(Article article) {
+        if (article == null) {
             return "Article";
         }
-        var article = variante.getArticle();
         String categorie = article.getCategory() == null ? null : article.getCategory().getNom();
         String type = article.getArticleType() == null ? null : article.getArticleType().getNom();
         if (categorie == null || categorie.isBlank()) {

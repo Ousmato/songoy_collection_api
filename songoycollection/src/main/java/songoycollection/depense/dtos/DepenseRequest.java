@@ -29,6 +29,9 @@ public record DepenseRequest(
         @NotNull(message = "Le moyen de paiement est obligatoire.")
         EnumShared.ModePaiement modePaiement,
 
+        /** Obligatoire lorsque le motif est SALAIRE, au format AAAA-MM. */
+        String periodeSalaire,
+
         Long personnelBeneficiaireId,
 
         Long fournisseurId,

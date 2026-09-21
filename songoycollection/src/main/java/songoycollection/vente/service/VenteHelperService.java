@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import songoycollection.article.model.ArticleVariant;
 import songoycollection.article.model.ArticleVariantAttribute;
+import songoycollection.article.model.DeclinaisonAttribute;
 import songoycollection.article.repository.ArticleVariantRepository;
 import songoycollection.personne.model.Personnel;
 import songoycollection.personne.shared.PersonnelUtiliShared;
@@ -17,6 +18,7 @@ import songoycollection.shared.RepositoryService;
 import songoycollection.stock.model.StockLot;
 import songoycollection.stock.model.StockMouvement;
 import songoycollection.vente.dtos.LigneVenteHistorique;
+import songoycollection.vente.dtos.LigneVenteAttributHistoriqueDto;
 import songoycollection.vente.dtos.PaiementVenteHistorique;
 import songoycollection.vente.dtos.VenteLigneRequestDto;
 import songoycollection.vente.dtos.VenteRequestDto;
@@ -32,6 +34,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -69,10 +72,29 @@ public class VenteHelperService {
     }
 
     public List<LigneVenteHistorique> loadHistoryLines(Long venteId) {
-        return repositoryService.getLigneVenteRepository()
-                .findActiveLinesForHistoryByVenteId(venteId)
+        List<LigneVente> lines = repositoryService.getLigneVenteRepository()
+                .findActiveLinesForHistoryByVenteId(venteId);
+        if (lines.isEmpty()) {
+            return List.of();
+        }
+
+        Set<Long> declinaisonIds = lines.stream()
+                .map(line -> line.getVariant().getDeclinaison().getId())
+                .collect(Collectors.toSet());
+        Map<Long, List<DeclinaisonAttribute>> declinaisonAttributesById = repositoryService
+                .getDeclinaisonAttributeRepository()
+                .findAllByDeclinaisonIdsWithAttribute(declinaisonIds)
                 .stream()
-                .map(this::toHistoryLine)
+                .collect(Collectors.groupingBy(attribute -> attribute.getDeclinaison().getId()));
+
+        return lines.stream()
+                .map(line -> toHistoryLine(
+                        line,
+                        declinaisonAttributesById.getOrDefault(
+                                line.getVariant().getDeclinaison().getId(),
+                                List.of()
+                        )
+                ))
                 .toList();
     }
 
@@ -84,9 +106,14 @@ public class VenteHelperService {
                 .toList();
     }
 
-    private LigneVenteHistorique toHistoryLine(LigneVente line) {
+    private LigneVenteHistorique toHistoryLine(
+            LigneVente line,
+            List<DeclinaisonAttribute> declinaisonAttributes
+    ) {
         ArticleVariant variant = line.getVariant();
-        var article = variant.getArticle();
+        var declinaison = variant.getDeclinaison();
+        var modele = declinaison.getModeleArticle();
+        var article = modele.getArticle();
         var category = article.getCategory();
 
         LigneVenteHistorique dto = new LigneVenteHistorique();
@@ -95,13 +122,27 @@ public class VenteHelperService {
         dto.setReferenceVariant(variant.getReference());
         dto.setArticleId(article.getId());
         dto.setArticle(articleName(article));
+        dto.setModele(modele.getNom());
+        dto.setMarque(modele.getMarque());
         dto.setUnite(category == null ? null : category.getMesureCategory());
-        dto.setAttributs(new HashMap<>());
-        for (ArticleVariantAttribute attribute : variant.getAttributs()) {
-            if (attribute.getAttribute() != null && attribute.getAttribute().getId() != null) {
-                dto.getAttributs().put(attribute.getAttribute().getId(), attribute.getValue());
-            }
-        }
+        dto.setAttributsDeclinaison(declinaisonAttributes.stream()
+                .filter(attribute -> attribute.getAttribute() != null
+                        && attribute.getAttribute().getId() != null)
+                .map(attribute -> toHistoryAttribute(
+                        attribute.getAttribute().getId(),
+                        attribute.getAttribute().getLabel(),
+                        attribute.getValue()
+                ))
+                .toList());
+        dto.setAttributsVariante(variant.getAttributs().stream()
+                .filter(attribute -> attribute.getAttribute() != null
+                        && attribute.getAttribute().getId() != null)
+                .map(attribute -> toHistoryAttribute(
+                        attribute.getAttribute().getId(),
+                        attribute.getAttribute().getLabel(),
+                        attribute.getValue()
+                ))
+                .toList());
         dto.setQuantite(line.getQuantite());
         dto.setPrixVente(line.getPrixVente() == null
                 ? null
@@ -109,6 +150,14 @@ public class VenteHelperService {
         dto.setTotalLigne(line.getQuantite() == null || line.getPrixVente() == null
                 ? 0.0
                 : line.getQuantite() * line.getPrixVente());
+        return dto;
+    }
+
+    private LigneVenteAttributHistoriqueDto toHistoryAttribute(Long id, String label, String value) {
+        LigneVenteAttributHistoriqueDto dto = new LigneVenteAttributHistoriqueDto();
+        dto.setId(id);
+        dto.setLabel(label);
+        dto.setValue(value);
         return dto;
     }
 
@@ -215,14 +264,15 @@ public class VenteHelperService {
                             "Variante introuvable : " + variantId
                     ));
 
-            if (variant.getArticle() == null
-                    || !variant.getArticle().isActive()
-                    || variant.getArticle().getCategory() == null
-                    || !variant.getArticle().getCategory().isActive()) {
+            var declinaison = variant.getDeclinaison();
+            var modeleArticle = declinaison == null ? null : declinaison.getModeleArticle();
+            var article = modeleArticle == null ? null : modeleArticle.getArticle();
+            var category = article == null ? null : article.getCategory();
+            if (article == null || !article.isActive() || category == null || !category.isActive()) {
                 throw new IllegalArgumentException("L'article ou sa catégorie est inactif.");
             }
 
-            if (variant.getArticle().getCategory().getEntite() == EnumShared.Entite.ATELIER) {
+            if (category.getEntite() == EnumShared.Entite.ATELIER) {
                 throw new IllegalArgumentException(
                         "Une vente boutique ne peut pas utiliser une variante de l'atelier."
                 );

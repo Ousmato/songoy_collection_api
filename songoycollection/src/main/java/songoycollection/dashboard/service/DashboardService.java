@@ -3,7 +3,10 @@ package songoycollection.dashboard.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import songoycollection.article.model.ArticleVariantAttribute;
+import songoycollection.article.model.DeclinaisonAttribute;
 import songoycollection.dashboard.dtos.DashboardAlerteStockDto;
+import songoycollection.dashboard.dtos.DashboardAlerteStockAttributDto;
 import songoycollection.dashboard.dtos.DashboardIndicateursDto;
 import songoycollection.dashboard.dtos.DashboardTopProduitDto;
 import songoycollection.dashboard.dtos.DashboardVenteJourDto;
@@ -21,6 +24,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -88,33 +93,91 @@ public class DashboardService {
         var personnel = personnelUtil.getPersonnelById(idAdmin);
         EnumShared.Entite entite = resolveEntite(personnel.getEntite(), entiteDemandee);
 
-        List<DashboardAlerteStockDto> alertes = new ArrayList<>();
-        repositoryService.getStockLotRepository()
+        List<Object[]> alertRows = repositoryService.getStockLotRepository()
                 .aggregateDashboardStockByVariant(entite)
-                .forEach(row -> {
+                .stream()
+                .filter(row -> {
                     EnumShared.UniteMesureCategory unite =
                             (EnumShared.UniteMesureCategory) row[5];
-                    StockAlertThresholdProperties.Thresholds seuils =
-                            stockAlertThresholds.forUnit(unite);
                     double quantiteRestante = ((Number) row[6]).doubleValue();
-                    String statut = stockAlertStatus(quantiteRestante, seuils);
-                    if (statut == null) {
-                        return;
-                    }
+                    return stockAlertStatus(
+                            quantiteRestante,
+                            stockAlertThresholds.forUnit(unite)
+                    ) != null;
+                })
+                .toList();
+        if (alertRows.isEmpty()) {
+            return List.of();
+        }
 
-                    DashboardAlerteStockDto dto = new DashboardAlerteStockDto();
-                    dto.setVariantId((Long) row[0]);
-                    dto.setArticleId((Long) row[1]);
-                    String categorie = (String) row[2];
-                    dto.setArticle(articleName(categorie, (String) row[3]));
-                    dto.setCategorie(categorie);
-                    dto.setReference((String) row[4]);
-                    dto.setUnite(unite);
-                    dto.setQuantiteRestante(quantiteRestante);
-                    dto.setStatut(statut);
-                    alertes.add(dto);
-                });
+        Set<Long> variantIds = alertRows.stream()
+                .map(row -> (Long) row[0])
+                .collect(Collectors.toSet());
+        Set<Long> declinaisonIds = alertRows.stream()
+                .map(row -> (Long) row[7])
+                .collect(Collectors.toSet());
+        Map<Long, List<DeclinaisonAttribute>> declinaisonAttributesById = repositoryService
+                .getDeclinaisonAttributeRepository()
+                .findAllByDeclinaisonIdsWithAttribute(declinaisonIds)
+                .stream()
+                .collect(Collectors.groupingBy(attribute -> attribute.getDeclinaison().getId()));
+        Map<Long, List<ArticleVariantAttribute>> variantAttributesById = repositoryService
+                .getArticleVariantAttributeRepository()
+                .findAllByVariantIdsWithAttribute(variantIds)
+                .stream()
+                .collect(Collectors.groupingBy(attribute -> attribute.getVariant().getId()));
+
+        List<DashboardAlerteStockDto> alertes = new ArrayList<>(alertRows.size());
+        for (Object[] row : alertRows) {
+            EnumShared.UniteMesureCategory unite = (EnumShared.UniteMesureCategory) row[5];
+            double quantiteRestante = ((Number) row[6]).doubleValue();
+            Long variantId = (Long) row[0];
+            Long declinaisonId = (Long) row[7];
+
+            DashboardAlerteStockDto dto = new DashboardAlerteStockDto();
+            dto.setVariantId(variantId);
+            dto.setArticleId((Long) row[1]);
+            String categorie = (String) row[2];
+            dto.setArticle(articleName(categorie, (String) row[3]));
+            dto.setCategorie(categorie);
+            dto.setModele((String) row[8]);
+            dto.setMarque((String) row[9]);
+            dto.setReference((String) row[4]);
+            dto.setAttributsDeclinaison(declinaisonAttributesById
+                    .getOrDefault(declinaisonId, List.of())
+                    .stream()
+                    .map(attribute -> toDashboardAttributeDto(
+                            attribute.getAttribute().getId(),
+                            attribute.getAttribute().getLabel(),
+                            attribute.getValue()
+                    ))
+                    .toList());
+            dto.setAttributsVariante(variantAttributesById
+                    .getOrDefault(variantId, List.of())
+                    .stream()
+                    .map(attribute -> toDashboardAttributeDto(
+                            attribute.getAttribute().getId(),
+                            attribute.getAttribute().getLabel(),
+                            attribute.getValue()
+                    ))
+                    .toList());
+            dto.setUnite(unite);
+            dto.setQuantiteRestante(quantiteRestante);
+            dto.setStatut(stockAlertStatus(
+                    quantiteRestante,
+                    stockAlertThresholds.forUnit(unite)
+            ));
+            alertes.add(dto);
+        }
         return alertes;
+    }
+
+    private DashboardAlerteStockAttributDto toDashboardAttributeDto(Long id, String label, String value) {
+        DashboardAlerteStockAttributDto dto = new DashboardAlerteStockAttributDto();
+        dto.setId(id);
+        dto.setLabel(label);
+        dto.setValue(value);
+        return dto;
     }
 
     private String stockAlertStatus(

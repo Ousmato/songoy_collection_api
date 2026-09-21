@@ -7,11 +7,13 @@ import org.springframework.transaction.annotation.Transactional;
 import songoycollection.achat.dtos.AchatHistoriqueDetailDto;
 import songoycollection.achat.dtos.AchatHistoriqueDto;
 import songoycollection.achat.dtos.FournisseurDto;
+import songoycollection.achat.dtos.LigneAchatAttributHistoriqueDto;
 import songoycollection.achat.dtos.LigneAchatHistoriqueDto;
 import songoycollection.achat.dtos.PaiementAchatDto;
 import songoycollection.achat.dtos.PersonnelAchatDto;
 import songoycollection.achat.model.Achat;
 import songoycollection.achat.model.LigneAchat;
+import songoycollection.article.model.DeclinaisonAttribute;
 import songoycollection.personne.model.Personnel;
 import songoycollection.personne.shared.PersonnelUtiliShared;
 import songoycollection.reglement.model.Reglement;
@@ -133,9 +135,29 @@ public class AchatHelperService {
     }
 
     private List<LigneAchatHistoriqueDto> loadLines(Long achatId) {
-        return repositoryService.getLigneAchatRepository().findActiveLinesForHistory(achatId)
+        List<LigneAchat> lines = repositoryService.getLigneAchatRepository()
+                .findActiveLinesForHistory(achatId);
+        if (lines.isEmpty()) {
+            return List.of();
+        }
+
+        var declinaisonIds = lines.stream()
+                .map(line -> line.getVariant().getDeclinaison().getId())
+                .collect(Collectors.toSet());
+        Map<Long, List<DeclinaisonAttribute>> declinaisonAttributesById = repositoryService
+                .getDeclinaisonAttributeRepository()
+                .findAllByDeclinaisonIdsWithAttribute(declinaisonIds)
                 .stream()
-                .map(this::toLine)
+                .collect(Collectors.groupingBy(attribute -> attribute.getDeclinaison().getId()));
+
+        return lines.stream()
+                .map(line -> toLine(
+                        line,
+                        declinaisonAttributesById.getOrDefault(
+                                line.getVariant().getDeclinaison().getId(),
+                                List.of()
+                        )
+                ))
                 .toList();
     }
 
@@ -150,9 +172,14 @@ public class AchatHelperService {
         return value == null ? 0.0 : value.doubleValue();
     }
 
-    private LigneAchatHistoriqueDto toLine(LigneAchat line) {
+    private LigneAchatHistoriqueDto toLine(
+            LigneAchat line,
+            List<DeclinaisonAttribute> declinaisonAttributes
+    ) {
         var variant = line.getVariant();
-        var article = variant.getArticle();
+        var declinaison = variant.getDeclinaison();
+        var modele = declinaison.getModeleArticle();
+        var article = modele.getArticle();
         var category = article.getCategory();
         LigneAchatHistoriqueDto dto = new LigneAchatHistoriqueDto();
         dto.setId(line.getId());
@@ -164,10 +191,38 @@ public class AchatHelperService {
                 ? article.getArticleType().getNom()
                 : "Type non renseigné";
         dto.setArticle(categoryName + " - " + typeName);
+        dto.setModele(modele.getNom());
+        dto.setMarque(modele.getMarque());
+        dto.setAttributsDeclinaison(declinaisonAttributes.stream()
+                .filter(attribute -> attribute.getAttribute() != null
+                        && attribute.getAttribute().getId() != null)
+                .map(attribute -> toHistoryAttribute(
+                        attribute.getAttribute().getId(),
+                        attribute.getAttribute().getLabel(),
+                        attribute.getValue()
+                ))
+                .toList());
+        dto.setAttributsVariante(variant.getAttributs().stream()
+                .filter(attribute -> attribute.getAttribute() != null
+                        && attribute.getAttribute().getId() != null)
+                .map(attribute -> toHistoryAttribute(
+                        attribute.getAttribute().getId(),
+                        attribute.getAttribute().getLabel(),
+                        attribute.getValue()
+                ))
+                .toList());
         dto.setUnite(category.getMesureCategory());
         dto.setQuantite(line.getQuantite());
         dto.setPrixAchatUnitaire(line.getPrixAchat());
         dto.setTotalLigne(line.getQuantite() * line.getPrixAchat());
+        return dto;
+    }
+
+    private LigneAchatAttributHistoriqueDto toHistoryAttribute(Long id, String label, String value) {
+        LigneAchatAttributHistoriqueDto dto = new LigneAchatAttributHistoriqueDto();
+        dto.setId(id);
+        dto.setLabel(label);
+        dto.setValue(value);
         return dto;
     }
 

@@ -12,6 +12,8 @@ import java.util.List;
 @Repository
 public interface LigneVenteRepository extends JpaRepository<LigneVente, Long> {
 
+    boolean existsByVariantId(Long variantId);
+
     @Query("""
             select coalesce(sum(l.quantite * l.prixVente), 0)
             from LigneVente l
@@ -24,7 +26,7 @@ public interface LigneVenteRepository extends JpaRepository<LigneVente, Long> {
             select coalesce(sum(l.quantite * l.prixVente), 0)
             from LigneVente l
             where l.annulee = false
-              and l.variant.article.category.entite = :entite
+              and l.variant.declinaison.modeleArticle.article.category.entite = :entite
               and l.vente.date >= :debut
               and l.vente.date < :finExclusive
             """)
@@ -39,7 +41,7 @@ public interface LigneVenteRepository extends JpaRepository<LigneVente, Long> {
                    coalesce(sum(l.quantite * l.prixVente), 0)
             from LigneVente l
             where l.annulee = false
-              and l.variant.article.category.entite = :entite
+              and l.variant.declinaison.modeleArticle.article.category.entite = :entite
               and l.vente.id in :venteIds
             group by l.vente.id
             """)
@@ -58,7 +60,9 @@ public interface LigneVenteRepository extends JpaRepository<LigneVente, Long> {
             from LigneVente l
             join l.vente v
             join l.variant variant
-            join variant.article a
+            join variant.declinaison declinaison
+            join declinaison.modeleArticle modele
+            join modele.article a
             join a.category c
             left join a.articleType articleType
             where l.annulee = false
@@ -80,7 +84,9 @@ public interface LigneVenteRepository extends JpaRepository<LigneVente, Long> {
             select l.vente.id, v.reference, l.quantite, c.mesureCategory
             from LigneVente l
             join l.variant v
-            join v.article a
+            join v.declinaison declinaison
+            join declinaison.modeleArticle modele
+            join modele.article a
             join a.category c
             where l.annulee = false
               and c.entite = :entite
@@ -103,7 +109,9 @@ public interface LigneVenteRepository extends JpaRepository<LigneVente, Long> {
     @Query("""
             select distinct l from LigneVente l
             join fetch l.variant v
-            join fetch v.article a
+            join fetch v.declinaison declinaison
+            join fetch declinaison.modeleArticle modele
+            join fetch modele.article a
             join fetch a.category c
             left join fetch a.articleType
             left join fetch v.attributs va

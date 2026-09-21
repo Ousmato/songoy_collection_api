@@ -4,7 +4,7 @@ import lombok.Data;
 import songoycollection.shared.EnumShared;
 
 import java.math.BigDecimal;
-import java.util.Map;
+import java.util.List;
 
 @Data
 public class LigneVenteHistorique {
@@ -15,10 +15,13 @@ public class LigneVenteHistorique {
 
     private Long articleId;
     private String article;
+    private String modele;
+    private String marque;
 
     private EnumShared.UniteMesureCategory unite;
 
-    private Map<Long, String> attributs;
+    private List<LigneVenteAttributHistoriqueDto> attributsDeclinaison;
+    private List<LigneVenteAttributHistoriqueDto> attributsVariante;
 
     private Double quantite;
     private BigDecimal prixVente;

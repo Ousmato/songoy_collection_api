@@ -5,6 +5,7 @@ import songoycollection.shared.EnumShared;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class StockMouvementHistoriqueDto {
@@ -15,8 +16,12 @@ public class StockMouvementHistoriqueDto {
     private Long lotId;
     private Long articleId;
     private String article; // catégorie + type
+    private String modele;
+    private String marque;
     private Long variantId;
     private String referenceVariante;
+    private List<StockMouvementAttributDto> attributsDeclinaison;
+    private List<StockMouvementAttributDto> attributsVariante;
     private EnumShared.UniteMesureCategory unite;
 
     private Double quantite;

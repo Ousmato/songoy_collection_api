@@ -32,6 +32,10 @@ public class Depense {
     @Enumerated(EnumType.STRING)
     private EnumShared.ModePaiement modePaiement;
 
+    /** Periode remuneree au format AAAA-MM, uniquement pour le motif SALAIRE. */
+    @Column(length = 7)
+    private String periodeSalaire;
+
     @NotNull(message = "Administrateur obligatoire")
     @ManyToOne(fetch = FetchType.LAZY)
     private Personnel personnelResponsable;

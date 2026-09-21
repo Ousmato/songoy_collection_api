@@ -11,6 +11,8 @@ import java.util.List;
 @Repository
 public interface LigneAchatRepository extends JpaRepository<LigneAchat, Long> {
 
+    boolean existsByVariantId(Long variantId);
+
     @Query("""
             select l.achat.id, coalesce(sum(l.quantite * l.prixAchat), 0)
             from LigneAchat l
@@ -44,11 +46,15 @@ public interface LigneAchatRepository extends JpaRepository<LigneAchat, Long> {
     Long countActiveLinesByAchatId(@Param("achatId") Long achatId);
 
     @Query("""
-            select l from LigneAchat l
+            select distinct l from LigneAchat l
             join fetch l.variant v
-            join fetch v.article a
+            join fetch v.declinaison d
+            join fetch d.modeleArticle modele
+            join fetch modele.article a
             join fetch a.category c
             left join fetch a.articleType t
+            left join fetch v.attributs va
+            left join fetch va.attribute
             where l.achat.id = :achatId
               and l.annulee = false
             order by l.id
