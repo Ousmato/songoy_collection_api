@@ -55,6 +55,53 @@ dans `172.26.0.0/24`, sans rendre l'utilisateur MySQL accessible depuis Internet
 Le workflow vérifie l'existence de ce `.env` et ne le transfère jamais. Ainsi, les secrets
 de production et les fichiers envoyés restent sur le VPS à chaque déploiement.
 
+## Communication frontend / API
+
+L'application utilise une seule origine :
+
+```text
+Frontend  https://boutique.yelensoft.org
+API       https://boutique.yelensoft.org/api/v1
+```
+
+Le build de production du frontend utilise cette URL. Le conteneur Java écoute
+sur son port interne `8080`, publié uniquement comme `127.0.0.1:8085` sur le
+VPS : définissez `APP_HOST_PORT=8085` dans son fichier `.env`. Le port hôte
+`8080` est déjà utilisé par une autre application de ce VPS. Dans le bloc HTTPS `server` Nginx existant de
+`boutique.yelensoft.org`, ajoutez le contenu de
+[`nginx/songoycollection-api.conf`](nginx/songoycollection-api.conf). N'ajoutez
+pas de second bloc `server` pour ce même domaine.
+
+Dans le `.env` du VPS, gardez :
+
+```dotenv
+CORS_ALLOWED_ORIGINS=https://boutique.yelensoft.org
+```
+
+Le frontend étant de la même origine que l'API, son navigateur ne déclenche pas
+de requête CORS. Cette valeur reste utile pour les autres clients web autorisés.
+
+Les images persistantes sont publiées sous `https://boutique.yelensoft.org/uploads/`.
+L'alias Nginx cible le répertoire actuellement documenté dans `.env.example` :
+`/home/songoydeploy/data/songoycollection/uploads`. Autorisez le processus Nginx
+(`www-data` sur Debian) à le traverser et à lire les fichiers :
+
+```bash
+sudo setfacl -m u:www-data:--x /home/songoydeploy
+sudo setfacl -m u:www-data:--x /home/songoydeploy/data
+sudo setfacl -m u:www-data:--x /home/songoydeploy/data/songoycollection
+sudo setfacl -R -m u:www-data:rx /home/songoydeploy/data/songoycollection/uploads
+sudo setfacl -R -d -m u:www-data:rx /home/songoydeploy/data/songoycollection/uploads
+```
+
+Après avoir inclus la configuration Nginx, vérifiez-la et rechargez-la sans
+interruption :
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
 ## Point de sécurité
 
 Un fichier `songoycollection/.env` est actuellement suivi par Git malgré la règle

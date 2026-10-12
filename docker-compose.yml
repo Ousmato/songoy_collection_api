@@ -4,7 +4,10 @@ services:
     container_name: songoycollection-api
     restart: unless-stopped
     ports:
-      - "${APP_HOST_PORT:?APP_HOST_PORT must be set in .env}:8080"
+      # The API is published only to the VPS itself. Nginx terminates HTTPS and
+      # proxies /api/ to this port; the Java process still listens on 8080 in
+      # the container. 8085 avoids the host port already used by usgestion.
+      - "127.0.0.1:${APP_HOST_PORT:?APP_HOST_PORT must be set in .env}:8080"
     env_file:
       - .env
     environment:
