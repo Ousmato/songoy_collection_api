@@ -7,6 +7,8 @@ WORKDIR /workspace
 COPY songoycollection/pom.xml ./pom.xml
 COPY songoycollection/src ./src
 
+# Test execution is skipped during the production image build, while test sources
+# are still compiled to catch obsolete references.
 RUN mvn --batch-mode --no-transfer-progress -DskipTests clean package
 
 # Keep the runtime image separate from the build tooling.

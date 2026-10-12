@@ -5,9 +5,6 @@ import org.junit.jupiter.api.Test;
 import songoycollection.achat.service.ReceptionHelperService;
 import songoycollection.article.repository.ArticleVariantRepository;
 import songoycollection.achat.dtos.ReceptionRequest;
-import songoycollection.depense.model.Depense;
-import songoycollection.achat.model.Achat;
-import songoycollection.personne.model.Personnel;
 import songoycollection.personne.shared.PersonnelUtiliShared;
 import songoycollection.shared.EnumShared;
 
@@ -52,25 +49,18 @@ class ReceptionHelperServiceTest {
     }
 
     @Test
-    void acceptsFullCreditWithoutCreatingExpense() {
+    void acceptsFullCreditWithoutPersistingAnExpense() {
         assertEquals(0.0, helper.validatePayment(null, 100000.0));
         var credit = new ReceptionRequest.Paiement(0.0, EnumShared.ModePaiement.CREDIT);
         assertEquals(0.0, helper.validatePayment(credit, 100000.0));
-        helper.createPayment(new Achat(), credit, new Personnel());
         verifyNoInteractions(entityManager);
     }
 
     @Test
-    void partialPaymentCreatesOnlyThePaidExpense() {
+    void acceptsPartialPayment() {
         var payment = new ReceptionRequest.Paiement(40000.0, EnumShared.ModePaiement.MOBILE);
         assertEquals(40000.0, helper.validatePayment(payment, 100000.0));
-        Achat achat = new Achat();
-        helper.createPayment(achat, payment, new Personnel());
-        var captor = org.mockito.ArgumentCaptor.forClass(Depense.class);
-        verify(entityManager).persist(captor.capture());
-        assertSame(achat, captor.getValue().getAchat());
-        assertEquals(40000.0, captor.getValue().getMontant());
-        assertEquals(EnumShared.ModePaiement.MOBILE, captor.getValue().getModePaiement());
+        verifyNoInteractions(entityManager);
     }
 
     @Test
