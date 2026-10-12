@@ -1,0 +1,29 @@
+services:
+  songoycollection-api:
+    image: songoycollection-api:latest
+    container_name: songoycollection-api
+    restart: unless-stopped
+    ports:
+      - "${APP_HOST_PORT:?APP_HOST_PORT must be set in .env}:8080"
+    env_file:
+      - .env
+    environment:
+      # Container paths are fixed; their persistent host directory is configured
+      # through APP_UPLOADS_DIR in the VPS .env file.
+      APP_UPLOAD_DIR: /app/uploads
+      APP_PERSONNEL_UPLOAD_DIR: /app/uploads/personnel
+    volumes:
+      - "${APP_UPLOADS_DIR:?APP_UPLOADS_DIR must be set in .env}:/app/uploads"
+    extra_hosts:
+      # Allows DB_HOST=host.docker.internal when MySQL runs directly on the VPS.
+      - "host.docker.internal:host-gateway"
+    networks:
+      - songoycollection-network
+
+networks:
+  songoycollection-network:
+    name: songoycollection-network
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.26.0.0/24

@@ -1,0 +1,87 @@
+name: Deploy Songoy Collection API to VPS
+
+on:
+  push:
+    branches: [deploy]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: songoycollection-backend-production
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAME: songoycollection-api:latest
+  REMOTE_DIR: ~/app/songoycollection
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build production image
+        run: docker build --pull --label org.opencontainers.image.title=songoycollection-api -t "$IMAGE_NAME" .
+
+      - name: Export production image
+        run: docker save "$IMAGE_NAME" | gzip -1 > songoycollection-api.tar.gz
+
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Pin VPS host key
+        env:
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          set -eu
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Verify VPS deployment directory
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          set -eu
+          ssh "$VPS_USER@$VPS_HOST" '
+            set -eu
+            install -d -m 700 ~/app/songoycollection
+            test -f ~/app/songoycollection/.env || {
+              echo "Le fichier ~/app/songoycollection/.env doit être créé sur le VPS." >&2
+              exit 1
+            }
+            chmod 600 ~/app/songoycollection/.env
+          '
+
+      - name: Transfer image and Compose file
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          set -eu
+          rsync -az --chmod=F600 \
+            songoycollection-api.tar.gz docker-compose.yml \
+            "$VPS_USER@$VPS_HOST:$REMOTE_DIR/"
+
+      - name: Recreate backend container
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          set -eu
+          ssh "$VPS_USER@$VPS_HOST" '
+            set -eu
+            cd ~/app/songoycollection
+            gzip -dc songoycollection-api.tar.gz | docker load
+            rm -f songoycollection-api.tar.gz
+            docker compose --env-file .env config -q
+            docker compose --env-file .env up -d --no-build --force-recreate --remove-orphans
+            docker image prune -f --filter "label=org.opencontainers.image.title=songoycollection-api"
+          '

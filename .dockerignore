@@ -1,0 +1,25 @@
+# Version-control and CI metadata
+.git
+.github
+
+# Local configuration and secrets. The VPS keeps its own .env file.
+.env
+.env.*
+!.env.example
+songoycollection/.env
+songoycollection/.env.*
+!songoycollection/.env.example
+
+# Build artefacts and IDE files
+**/target
+**/*.log
+.idea
+.vscode
+**/*.iml
+**/*.ipr
+**/*.iws
+
+# The image build invokes Maven directly.
+songoycollection/.mvn
+songoycollection/mvnw
+songoycollection/mvnw.cmd

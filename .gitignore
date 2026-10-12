@@ -1,0 +1,7 @@
+# VPS runtime configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Docker build output
+*.tar
