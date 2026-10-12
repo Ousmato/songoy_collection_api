@@ -12,6 +12,7 @@ import songoycollection.personne.service.AdminService;
 import songoycollection.personne.service.FournisseurService;
 import songoycollection.setting.service.SettingMenuStatsService;
 import songoycollection.vente.service.VenteService;
+import songoycollection.atelier.services.CommandeConfectionService;
 
 @Data
 @RequiredArgsConstructor
@@ -33,6 +34,8 @@ public class ServiceShared {
     private final ReceptionService receptionService;
 
     private final FournisseurService fournisseurService;
+
+    private final CommandeConfectionService commandeConfectionService;
 
     private final SettingMenuStatsService settingMenuStatsService;
 }

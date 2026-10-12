@@ -12,6 +12,7 @@ import songoycollection.article.repository.ArticleVariantAttributeRepository;
 import songoycollection.article.repository.ModeleArticleRepository;
 import songoycollection.article.repository.DeclinaisonRepository;
 import songoycollection.article.repository.DeclinaisonAttributeRepository;
+import songoycollection.atelier.repositorie.*;
 import songoycollection.category.repository.CategoryRepository;
 import songoycollection.category.repository.CategoryAttributeRepository;
 import songoycollection.category.repository.AttributeDefinitionRepository;
@@ -67,4 +68,14 @@ public class RepositoryService {
     private final StockMouvementRepository stockMouvementRepository;
 
     private final FourniseurRepository fourniseurRepository;
+
+    private final CommandeConfectionRepository commandeConfectionRepository;
+
+    private final DepotMatiereClientRepository depotMatiereClientRepository;
+
+    private final MesureOuvrageRepository mesureOuvrageRepository;
+
+    private final OuvrageConfectionRepository ouvrageConfectionRepository;
+
+    private final VersementCommandeRepository versementCommandeRepository;
 }

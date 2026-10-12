@@ -3,7 +3,6 @@ package songoycollection.vente.model;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
-import songoycollection.commande.model.Commande;
 import songoycollection.personne.model.Personnel;
 import songoycollection.shared.EnumShared;
 
@@ -34,9 +33,6 @@ public class Vente {
 
     @ManyToOne(fetch = FetchType.LAZY)
     private Personnel client;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    private Commande commande;
 
     @NotNull(message = "Mode de paiement est obligatoire.")
     @Enumerated(EnumType.STRING)
