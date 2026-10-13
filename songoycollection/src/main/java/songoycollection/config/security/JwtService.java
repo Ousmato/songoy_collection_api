@@ -9,6 +9,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
+import java.time.Instant;
 import java.util.Date;
 import java.util.UUID;
 
@@ -58,15 +59,33 @@ public class JwtService {
                 .compact();
     }
 
-    public String extractAccessCode(String token) {
-        return extractClaims(token).getSubject();
+    public JwtTokenDetails getTokenDetails(String token) {
+        Claims claims = extractClaims(token);
+        String tokenId = claims.getId();
+        String accessCode = claims.getSubject();
+        Date expiration = claims.getExpiration();
+        Object personnelIdClaim = claims.get("uid");
+
+        if (tokenId == null || tokenId.isBlank()
+                || accessCode == null || accessCode.isBlank()
+                || expiration == null
+                || !(personnelIdClaim instanceof Number personnelId)) {
+            throw new IllegalArgumentException("Le jeton d'accÃ¨s est incomplet.");
+        }
+
+        return new JwtTokenDetails(
+                tokenId,
+                accessCode,
+                personnelId.longValue(),
+                expiration.toInstant(),
+                claims.getIssuer()
+        );
     }
 
-    public boolean isTokenValid(String token, UserDetails userDetails) {
-        Claims claims = extractClaims(token);
-        return issuer.equals(claims.getIssuer())
-                && userDetails.getUsername().equals(claims.getSubject())
-                && claims.getExpiration().after(new Date());
+    public boolean isTokenValid(JwtTokenDetails tokenDetails, UserDetails userDetails) {
+        return issuer.equals(tokenDetails.issuer())
+                && userDetails.getUsername().equals(tokenDetails.accessCode())
+                && tokenDetails.expiresAt().isAfter(Instant.now());
     }
 
     public long getExpirationTime() {
@@ -93,5 +112,14 @@ public class JwtService {
         } catch (IllegalArgumentException exception) {
             throw new IllegalStateException("JWT_SECRET_KEY doit être une valeur Base64 valide.", exception);
         }
+    }
+
+    public record JwtTokenDetails(
+            String tokenId,
+            String accessCode,
+            Long personnelId,
+            Instant expiresAt,
+            String issuer
+    ) {
     }
 }

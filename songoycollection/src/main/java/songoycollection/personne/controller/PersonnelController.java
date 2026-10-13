@@ -2,6 +2,8 @@ package songoycollection.personne.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import java.nio.file.AccessDeniedException;
@@ -9,6 +11,7 @@ import java.util.List;
 
 import songoycollection.achat.dtos.FournisseurDto;
 import songoycollection.config.security.PersonnelPrincipal;
+import songoycollection.config.security.TokenRevocationService;
 import songoycollection.personne.dtos.*;
 import songoycollection.shared.ServiceShared;
 
@@ -18,11 +21,28 @@ import songoycollection.shared.ServiceShared;
 public class PersonnelController {
 
     private final ServiceShared serviceShared;
+    private final TokenRevocationService tokenRevocationService;
 
     @PostMapping("login")
     @Operation(summary = "Se connecter à la base de données")
     public LoginResponseDto login(@RequestBody LoginRequestDto loginRequestDto) {
         return serviceShared.getAdminService().login(loginRequestDto);
+    }
+
+    @PostMapping("logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "DÃ©connecter le compte et rÃ©voquer son jeton d'accÃ¨s")
+    public void logout(
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization,
+            @AuthenticationPrincipal PersonnelPrincipal connectedPersonnel) {
+        tokenRevocationService.revoke(extractBearerToken(authorization), connectedPersonnel);
+    }
+
+    @GetMapping("profile")
+    @Operation(summary = "Récupérer le profil complet du compte connecté")
+    public PersonnelProfileResponseDto getConnectedProfile(
+            @AuthenticationPrincipal PersonnelPrincipal connectedPersonnel) {
+        return serviceShared.getAdminService().getConnectedProfile(connectedPersonnel.getId());
     }
 
     @PostMapping("add-personnel")
@@ -71,5 +91,18 @@ public class PersonnelController {
     public List<FournisseurDto> getFournisseurs(
             @AuthenticationPrincipal PersonnelPrincipal connectedPersonnel) {
         return serviceShared.getFournisseurService().loadFournisseurs(connectedPersonnel.getId());
+    }
+
+    private String extractBearerToken(String authorization) {
+        if (authorization == null || !authorization.startsWith("Bearer ")) {
+            throw new IllegalArgumentException("Jeton d'accÃ¨s obligatoire.");
+        }
+
+        String token = authorization.substring(7).trim();
+        if (token.isEmpty()) {
+            throw new IllegalArgumentException("Jeton d'accÃ¨s obligatoire.");
+        }
+
+        return token;
     }
 }

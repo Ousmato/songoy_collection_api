@@ -15,6 +15,7 @@ import songoycollection.personne.dtos.LoginRequestDto;
 import songoycollection.personne.dtos.LoginResponseDto;
 import songoycollection.personne.dtos.ClientResponseDto;
 import songoycollection.personne.dtos.PersonnelMenuStatsDto;
+import songoycollection.personne.dtos.PersonnelProfileResponseDto;
 import songoycollection.personne.dtos.SimplePersonnelResponseDto;
 import songoycollection.personne.model.Personnel;
 import songoycollection.personne.shared.PersonnelUtiliShared;
@@ -124,6 +125,12 @@ public class AdminService {
         return personnel.stream()
                 .map(SimplePersonnelResponseDto::fromPersonnel)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PersonnelProfileResponseDto getConnectedProfile(Long personnelId) {
+        Personnel personnel = personnelUtiliShared.getPersonnelById(personnelId);
+        return PersonnelProfileResponseDto.fromPersonnel(personnel);
     }
 
     public List<ClientResponseDto> loadClients(Long idAdmin) throws AccessDeniedException {

@@ -30,6 +30,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final PersonnelDetailsService personnelDetailsService;
+    private final TokenRevocationService tokenRevocationService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -51,10 +52,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 return;
             }
 
-            String accessCode = jwtService.extractAccessCode(token);
+            JwtService.JwtTokenDetails tokenDetails = jwtService.getTokenDetails(token);
+            if (!isLogoutRequest(request) && tokenRevocationService.isRevoked(tokenDetails.tokenId())) {
+                SecurityContextHolder.clearContext();
+                writeUnauthorizedResponse(response);
+                return;
+            }
+
+            String accessCode = tokenDetails.accessCode();
             if (accessCode != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails personnel = personnelDetailsService.loadUserByUsername(accessCode);
-                if (jwtService.isTokenValid(token, personnel)) {
+                if (jwtService.isTokenValid(tokenDetails, personnel)) {
                     UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                             personnel,
                             null,
@@ -70,6 +78,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             SecurityContextHolder.clearContext();
             writeUnauthorizedResponse(response);
         }
+    }
+
+    private boolean isLogoutRequest(HttpServletRequest request) {
+        return "POST".equalsIgnoreCase(request.getMethod())
+                && "/api/v1/logout".equals(request.getRequestURI());
     }
 
     private void writeUnauthorizedResponse(HttpServletResponse response) throws IOException {
