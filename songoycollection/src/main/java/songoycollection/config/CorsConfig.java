@@ -1,4 +1,4 @@
-package songoycollection.config.securityConfig;
+package songoycollection.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
@@ -6,7 +6,8 @@ import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
-public class CorssConfig implements WebMvcConfigurer {
+public class CorsConfig implements WebMvcConfigurer {
+
     @Value("${app.cors.allowed-origins}")
     private String[] allowedOrigins;
 
@@ -23,6 +24,5 @@ public class CorssConfig implements WebMvcConfigurer {
                 )
                 .exposedHeaders("X-Token-Expiring-Soon")
                 .allowCredentials(true);
-
     }
 }

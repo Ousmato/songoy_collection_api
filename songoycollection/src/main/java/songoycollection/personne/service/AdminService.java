@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import songoycollection.config.HttpCustumMessage;
+import songoycollection.config.security.JwtService;
+import songoycollection.config.security.PersonnelPrincipal;
 import songoycollection.personne.dtos.PersonnelDto;
 import songoycollection.personne.dtos.LoginRequestDto;
 import songoycollection.personne.dtos.LoginResponseDto;
@@ -33,6 +35,7 @@ public class AdminService {
 
     private final Validator validator;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
     public Object addPersonnel(PersonnelDto requestDto, Long idAdmin) {
         Personnel creator = personnelUtiliShared.getPersonnelById(idAdmin);
@@ -194,7 +197,12 @@ public class AdminService {
             throw new IllegalArgumentException("Code d'accès ou mot de passe incorrect");
         }
 
-        return LoginResponseDto.fromPersonnel(personnel);
+        PersonnelPrincipal principal = new PersonnelPrincipal(personnel);
+        LoginResponseDto response = LoginResponseDto.fromPersonnel(personnel);
+        response.setAccessToken(jwtService.generateToken(principal));
+        response.setTokenType("Bearer");
+        response.setExpiresIn(jwtService.getExpirationTime());
+        return response;
     }
 
 

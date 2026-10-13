@@ -12,6 +12,9 @@ public class LoginResponseDto {
     private String accessCode;
     private EnumShared.PersonnelRole role;
     private EnumShared.Entite entite;
+    private String accessToken;
+    private String tokenType;
+    private long expiresIn;
 
     public static LoginResponseDto fromPersonnel(Personnel personnel) {
         LoginResponseDto response = new LoginResponseDto();

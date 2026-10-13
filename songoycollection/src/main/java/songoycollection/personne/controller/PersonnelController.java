@@ -2,13 +2,14 @@ package songoycollection.personne.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import java.nio.file.AccessDeniedException;
 import java.util.List;
 
 import songoycollection.achat.dtos.FournisseurDto;
+import songoycollection.config.security.PersonnelPrincipal;
 import songoycollection.personne.dtos.*;
-import songoycollection.personne.service.AdminService;
 import songoycollection.shared.ServiceShared;
 
 @RestController
@@ -24,44 +25,51 @@ public class PersonnelController {
         return serviceShared.getAdminService().login(loginRequestDto);
     }
 
-    @PostMapping("add-personnel/{idAdmin}")
+    @PostMapping("add-personnel")
     @Operation(summary = "Ajouter un personnel")
     public Object addPersonnel(
-            @PathVariable("idAdmin") Long idAdmin, @RequestBody PersonnelDto personnelDto) {
-        return serviceShared.getAdminService().addPersonnel(personnelDto, idAdmin);
+            @AuthenticationPrincipal PersonnelPrincipal connectedPersonnel,
+            @RequestBody PersonnelDto personnelDto) {
+        return serviceShared.getAdminService().addPersonnel(personnelDto, connectedPersonnel.getId());
     }
 
-    @GetMapping("load-personnel/{idAdmin}")
+    @GetMapping("load-personnel")
     @Operation(summary = "Lister le personnel selon le rôle et l'entité du compte connecté")
-    public List<SimplePersonnelResponseDto> loadPersonnel(@PathVariable Long idAdmin)
+    public List<SimplePersonnelResponseDto> loadPersonnel(
+            @AuthenticationPrincipal PersonnelPrincipal connectedPersonnel)
             throws AccessDeniedException {
-        return serviceShared.getAdminService().loadPersonnel(idAdmin);
+        return serviceShared.getAdminService().loadPersonnel(connectedPersonnel.getId());
     }
 
-    @GetMapping("personnel-menu/statistiques/{idAdmin}")
+    @GetMapping("personnel-menu/statistiques")
     @Operation(summary = "Récupérer les compteurs du menu personnel")
-    public PersonnelMenuStatsDto getPersonnelMenuStats(@PathVariable Long idAdmin)
+    public PersonnelMenuStatsDto getPersonnelMenuStats(
+            @AuthenticationPrincipal PersonnelPrincipal connectedPersonnel)
             throws AccessDeniedException {
-        return serviceShared.getAdminService().getPersonnelMenuStats(idAdmin);
+        return serviceShared.getAdminService().getPersonnelMenuStats(connectedPersonnel.getId());
     }
 
-    @GetMapping("load-clients/{idAdmin}")
+    @GetMapping("load-clients")
     @Operation(summary = "Lister les clients actifs, toutes entités confondues")
-    public List<ClientResponseDto> loadClients(@PathVariable Long idAdmin)
+    public List<ClientResponseDto> loadClients(
+            @AuthenticationPrincipal PersonnelPrincipal connectedPersonnel)
             throws AccessDeniedException {
-        return serviceShared.getAdminService().loadClients(idAdmin);
+        return serviceShared.getAdminService().loadClients(connectedPersonnel.getId());
     }
 
-    @PostMapping("add-fournisseur/{idAdmin}")
+    @PostMapping("add-fournisseur")
     @Operation(summary = "Ajouter un fournisseur")
-    public Object addFournisseur(@PathVariable Long idAdmin, @RequestBody FournisseurRequestDto requestDto) {
-        return serviceShared.getFournisseurService().addFournisseur(idAdmin, requestDto);
+    public Object addFournisseur(
+            @AuthenticationPrincipal PersonnelPrincipal connectedPersonnel,
+            @RequestBody FournisseurRequestDto requestDto) {
+        return serviceShared.getFournisseurService().addFournisseur(connectedPersonnel.getId(), requestDto);
 
     }
 
-    @GetMapping("fournisseurs/{idAdmin}")
+    @GetMapping("fournisseurs")
     @Operation(summary = "Lister les fournisseurs")
-    public List<FournisseurDto> getFournisseurs(@PathVariable Long idAdmin) {
-        return serviceShared.getFournisseurService().loadFournisseurs(idAdmin);
+    public List<FournisseurDto> getFournisseurs(
+            @AuthenticationPrincipal PersonnelPrincipal connectedPersonnel) {
+        return serviceShared.getFournisseurService().loadFournisseurs(connectedPersonnel.getId());
     }
 }
